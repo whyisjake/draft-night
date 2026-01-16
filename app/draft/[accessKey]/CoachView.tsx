@@ -128,9 +128,12 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
     }
   };
 
-  // Poll for state updates every 3 seconds as backup to SSE
-  // (SSE may not work reliably on serverless due to instance isolation)
+  // Poll for state updates every 3 seconds
+  // (SSE doesn't work reliably on Vercel serverless due to instance isolation)
   useEffect(() => {
+    // Fetch immediately on mount to get fresh data
+    refreshState();
+    // Then poll every 3 seconds
     const pollInterval = setInterval(refreshState, 3000);
     return () => clearInterval(pollInterval);
   }, [draft.id]);
