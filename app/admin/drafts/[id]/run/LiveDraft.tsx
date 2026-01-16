@@ -29,6 +29,7 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [noteValue, setNoteValue] = useState('');
   const [timeRemaining, setTimeRemaining] = useState(() => calculateTimeRemaining(draft.pickStartedAt));
+  const [showResetModal, setShowResetModal] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Timer countdown - recalculate from server time every second
@@ -136,6 +137,18 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
     }
   }
 
+  async function resetDraft() {
+    const res = await fetch(`/api/drafts/${draft.id}/reset`, {
+      method: 'POST',
+    });
+
+    if (res.ok) {
+      // Reload the page to get fresh state
+      window.location.href = `/admin/drafts/${draft.id}`;
+    }
+    setShowResetModal(false);
+  }
+
   async function saveNotes(playerId: string) {
     const res = await fetch(`/api/drafts/${draft.id}/players/${playerId}`, {
       method: 'PATCH',
@@ -206,9 +219,45 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
             >
               Undo
             </button>
+            <button
+              onClick={() => setShowResetModal(true)}
+              className="bg-red-100 text-red-700 py-2 px-4 rounded-lg hover:bg-red-200 transition"
+            >
+              Nuke
+            </button>
           </div>
         </div>
       </header>
+
+      {/* Reset Confirmation Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
+            <h2 className="text-2xl font-bold text-red-600 mb-4">Nuke the Draft?</h2>
+            <p className="text-gray-700 mb-6">
+              This will <strong>permanently delete all picks</strong> and reset the draft back to the setup screen.
+              All drafted players will become available again. Coach kids will need to be re-placed when you restart.
+            </p>
+            <p className="text-gray-700 mb-6 font-semibold">
+              This action cannot be undone. Are you absolutely sure?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowResetModal(false)}
+                className="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-300 transition font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={resetDraft}
+                className="flex-1 bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 transition font-bold"
+              >
+                Yes, Nuke It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex h-[calc(100vh-80px)]">
         {/* Draft Board */}
