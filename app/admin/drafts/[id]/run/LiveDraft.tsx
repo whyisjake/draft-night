@@ -30,6 +30,7 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
   const [noteValue, setNoteValue] = useState('');
   const [timeRemaining, setTimeRemaining] = useState(() => calculateTimeRemaining(draft.pickStartedAt));
   const [showResetModal, setShowResetModal] = useState(false);
+  const [keepCoachKids, setKeepCoachKids] = useState(true);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Timer countdown - recalculate from server time every second
@@ -140,6 +141,8 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
   async function resetDraft() {
     const res = await fetch(`/api/drafts/${draft.id}/reset`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keepCoachKids }),
     });
 
     if (res.ok) {
@@ -234,10 +237,23 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
             <h2 className="text-2xl font-bold text-red-600 mb-4">Nuke the Draft?</h2>
-            <p className="text-gray-700 mb-6">
+            <p className="text-gray-700 mb-4">
               This will <strong>permanently delete all picks</strong> and reset the draft back to the setup screen.
-              All drafted players will become available again. Coach kids will need to be re-placed when you restart.
+              All drafted players will become available again.
             </p>
+            <label className="flex items-center gap-3 mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded-lg cursor-pointer">
+              <input
+                type="checkbox"
+                checked={keepCoachKids}
+                onChange={(e) => setKeepCoachKids(e.target.checked)}
+                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-gray-700">
+                <strong>Keep coach kid assignments</strong>
+                <br />
+                <span className="text-sm text-gray-500">They&apos;ll be auto-placed when you restart the draft</span>
+              </span>
+            </label>
             <p className="text-gray-700 mb-6 font-semibold">
               This action cannot be undone. Are you absolutely sure?
             </p>

@@ -9,6 +9,7 @@ interface RouteParams {
 
 export async function POST(request: Request, { params }: RouteParams) {
   const { id } = await params;
+  const { keepCoachKids } = await request.json().catch(() => ({ keepCoachKids: false }));
 
   // Reset all non-coach-kid players to undrafted
   await db
@@ -32,16 +33,33 @@ export async function POST(request: Request, { params }: RouteParams) {
     })
     .where(eq(drafts.id, id));
 
-  // Also reset coach kids draft status (they'll be re-placed on start)
-  await db
-    .update(players)
-    .set({
-      isDrafted: false,
-      draftedByTeamId: null,
-      roundDrafted: null,
-      pickNumber: null,
-    })
-    .where(and(eq(players.draftId, id), eq(players.isCoachKid, true)));
+  // Reset coach kids draft status unless keeping them
+  // (they'll be re-placed on start based on their coachKidTeamId/coachKidRound)
+  if (!keepCoachKids) {
+    // Clear coach kid team assignments completely
+    await db
+      .update(players)
+      .set({
+        isDrafted: false,
+        draftedByTeamId: null,
+        roundDrafted: null,
+        pickNumber: null,
+        coachKidTeamId: null,
+        coachKidRound: null,
+      })
+      .where(and(eq(players.draftId, id), eq(players.isCoachKid, true)));
+  } else {
+    // Just reset their drafted status, keep the team assignment
+    await db
+      .update(players)
+      .set({
+        isDrafted: false,
+        draftedByTeamId: null,
+        roundDrafted: null,
+        pickNumber: null,
+      })
+      .where(and(eq(players.draftId, id), eq(players.isCoachKid, true)));
+  }
 
   const [updatedDraft] = await db.select().from(drafts).where(eq(drafts.id, id));
 
