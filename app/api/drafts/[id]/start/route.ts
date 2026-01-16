@@ -29,8 +29,8 @@ export async function POST(request: Request, { params }: RouteParams) {
       .where(eq(players.id, player.id));
   }
 
-  // Update draft status
-  await db.update(drafts).set({ status: 'active' }).where(eq(drafts.id, id));
+  // Update draft status and start timer
+  await db.update(drafts).set({ status: 'active', pickStartedAt: new Date() }).where(eq(drafts.id, id));
 
   return NextResponse.json({ success: true });
 }

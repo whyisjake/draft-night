@@ -75,10 +75,10 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
   } while (nextRound <= draft.totalRounds);
 
-  // Update draft position
+  // Update draft position and reset timer
   await db
     .update(drafts)
-    .set({ currentRound: nextRound, currentPick: nextPick })
+    .set({ currentRound: nextRound, currentPick: nextPick, pickStartedAt: new Date() })
     .where(eq(drafts.id, id));
 
   const [updatedDraft] = await db.select().from(drafts).where(eq(drafts.id, id));

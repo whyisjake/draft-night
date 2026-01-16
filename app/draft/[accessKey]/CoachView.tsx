@@ -12,6 +12,13 @@ interface Props {
   players: Player[];
 }
 
+function calculateTimeRemaining(pickStartedAt: Date | string | null): number {
+  if (!pickStartedAt) return PICK_TIME_SECONDS;
+  const startTime = new Date(pickStartedAt).getTime();
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  return Math.max(0, PICK_TIME_SECONDS - elapsed);
+}
+
 export default function CoachView({ draft: initialDraft, teams, players: initialPlayers }: Props) {
   const [draft, setDraft] = useState(initialDraft);
   const [players, setPlayers] = useState(initialPlayers);
@@ -20,20 +27,19 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
   const [myTeamId, setMyTeamId] = useState<string | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
-  const [timeRemaining, setTimeRemaining] = useState(PICK_TIME_SECONDS);
+  const [timeRemaining, setTimeRemaining] = useState(() => calculateTimeRemaining(initialDraft.pickStartedAt));
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Timer countdown effect
+  // Timer countdown - recalculate from server time every second
   useEffect(() => {
-    if (timeRemaining > 0) {
-      timerRef.current = setTimeout(() => {
-        setTimeRemaining((t) => t - 1);
-      }, 1000);
-    }
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+    const tick = () => {
+      setTimeRemaining(calculateTimeRemaining(draft.pickStartedAt));
     };
-  }, [timeRemaining]);
+    timerRef.current = setInterval(tick, 1000);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [draft.pickStartedAt]);
 
   // Check notification permission on mount
   useEffect(() => {
@@ -74,7 +80,6 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
       const data = JSON.parse(event.data);
       setDraft(data.draft);
       setPlayers((prev) => prev.map((p) => (p.id === data.player.id ? data.player : p)));
-      setTimeRemaining(PICK_TIME_SECONDS); // Reset timer on new pick
     });
 
     eventSource.addEventListener('undo', (event) => {
@@ -83,12 +88,16 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
       if (data.player) {
         setPlayers((prev) => prev.map((p) => (p.id === data.player.id ? data.player : p)));
       }
-      setTimeRemaining(PICK_TIME_SECONDS); // Reset timer on undo
     });
 
     eventSource.addEventListener('playerUpdate', (event) => {
       const data = JSON.parse(event.data);
       setPlayers((prev) => prev.map((p) => (p.id === data.player.id ? data.player : p)));
+    });
+
+    eventSource.addEventListener('timerReset', (event) => {
+      const data = JSON.parse(event.data);
+      setDraft(data.draft);
     });
 
     eventSource.onerror = () => {

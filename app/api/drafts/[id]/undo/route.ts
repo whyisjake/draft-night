@@ -55,7 +55,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   await db
     .update(drafts)
-    .set({ currentRound: lastRound, currentPick: lastPickInRound })
+    .set({ currentRound: lastRound, currentPick: lastPickInRound, pickStartedAt: new Date() })
     .where(eq(drafts.id, id));
 
   const [updatedDraft] = await db.select().from(drafts).where(eq(drafts.id, id));

@@ -13,6 +13,13 @@ interface Props {
   players: Player[];
 }
 
+function calculateTimeRemaining(pickStartedAt: Date | string | null): number {
+  if (!pickStartedAt) return PICK_TIME_SECONDS;
+  const startTime = new Date(pickStartedAt).getTime();
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  return Math.max(0, PICK_TIME_SECONDS - elapsed);
+}
+
 export default function LiveDraft({ draft: initialDraft, teams, players: initialPlayers }: Props) {
   const [draft, setDraft] = useState(initialDraft);
   const [players, setPlayers] = useState(initialPlayers);
@@ -21,35 +28,29 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
   const [sortBy, setSortBy] = useState<'ranking' | 'rating' | 'name' | 'age'>('ranking');
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [noteValue, setNoteValue] = useState('');
-  const [timeRemaining, setTimeRemaining] = useState(PICK_TIME_SECONDS);
-  const [timerRunning, setTimerRunning] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(() => calculateTimeRemaining(draft.pickStartedAt));
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Timer countdown effect
+  // Timer countdown - recalculate from server time every second
   useEffect(() => {
-    if (timerRunning && timeRemaining > 0) {
-      timerRef.current = setTimeout(() => {
-        setTimeRemaining((t) => t - 1);
-      }, 1000);
-    }
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+    const tick = () => {
+      setTimeRemaining(calculateTimeRemaining(draft.pickStartedAt));
     };
-  }, [timerRunning, timeRemaining]);
+    timerRef.current = setInterval(tick, 1000);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [draft.pickStartedAt]);
 
-  // Reset timer when pick changes
-  useEffect(() => {
-    setTimeRemaining(PICK_TIME_SECONDS);
-    setTimerRunning(true);
-  }, [draft.currentRound, draft.currentPick]);
-
-  function resetTimer() {
-    setTimeRemaining(PICK_TIME_SECONDS);
-    setTimerRunning(true);
-  }
-
-  function toggleTimer() {
-    setTimerRunning(!timerRunning);
+  async function resetTimer() {
+    // Update server timestamp to reset timer for everyone
+    const res = await fetch(`/api/drafts/${draft.id}/timer`, {
+      method: 'POST',
+    });
+    if (res.ok) {
+      const { draft: updatedDraft } = await res.json();
+      setDraft(updatedDraft);
+    }
   }
 
   // Calculate current team based on snake draft
@@ -179,20 +180,12 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
                 >
                   {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
                 </div>
-                <div className="flex flex-col gap-1">
-                  <button
-                    onClick={toggleTimer}
-                    className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
-                  >
-                    {timerRunning ? 'Pause' : 'Start'}
-                  </button>
-                  <button
-                    onClick={resetTimer}
-                    className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
-                  >
-                    Reset
-                  </button>
-                </div>
+                <button
+                  onClick={resetTimer}
+                  className="px-3 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300"
+                >
+                  Reset
+                </button>
               </div>
             )}
             {!isComplete ? (
