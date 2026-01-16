@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Draft, Team, Player } from '@/lib/schema';
 import Link from 'next/link';
@@ -34,6 +34,16 @@ export default function DraftSetup({ draft, teams: initialTeams, players: initia
   const [editCoachName, setEditCoachName] = useState('');
   const [editTeamName, setEditTeamName] = useState('');
   const [useCustomTeamName, setUseCustomTeamName] = useState(false);
+
+  // Sort players by ranking number, then by name as secondary
+  const sortedPlayers = useMemo(() => {
+    return [...players].sort((a, b) => {
+      const rankA = a.rankingNumber || 999;
+      const rankB = b.rankingNumber || 999;
+      if (rankA !== rankB) return rankA - rankB;
+      return a.fullName.localeCompare(b.fullName);
+    });
+  }, [players]);
 
   async function addTeam() {
     if (!newCoachName.trim()) return;
@@ -401,7 +411,7 @@ export default function DraftSetup({ draft, teams: initialTeams, players: initia
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {players.map((player) => (
+                      {sortedPlayers.map((player) => (
                         <tr key={player.id} className={player.isCoachKid ? 'bg-yellow-50' : ''}>
                           <td className="px-4 py-2 text-sm">{player.rankingNumber}</td>
                           <td className="px-4 py-2 text-sm font-medium">{player.fullName}</td>
