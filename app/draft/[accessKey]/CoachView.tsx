@@ -112,19 +112,28 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
     }
   }
 
-  // Fetch full state from server (used on connect/reconnect)
-  async function refreshState() {
+  // Fetch full state from server (used for polling and reconnect)
+  const refreshState = async () => {
     try {
-      const res = await fetch(`/api/drafts/${draft.id}/state`);
+      const res = await fetch(`/api/drafts/${draft.id}/state`, {
+        cache: 'no-store',
+      });
       if (res.ok) {
         const data = await res.json();
         setDraft(data.draft);
         setPlayers(data.players);
       }
     } catch {
-      // Ignore fetch errors, will retry on next reconnect
+      // Ignore fetch errors, will retry on next poll
     }
-  }
+  };
+
+  // Poll for state updates every 3 seconds as backup to SSE
+  // (SSE may not work reliably on serverless due to instance isolation)
+  useEffect(() => {
+    const pollInterval = setInterval(refreshState, 3000);
+    return () => clearInterval(pollInterval);
+  }, [draft.id]);
 
   // Connect to SSE for real-time updates
   useEffect(() => {
