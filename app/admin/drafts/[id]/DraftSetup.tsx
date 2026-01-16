@@ -35,15 +35,18 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
   const [importAction, setImportAction] = useState<'replace' | 'addNew' | 'update'>('replace');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ added: number; updated: number; skipped: number } | null>(null);
+  const [previewDiff, setPreviewDiff] = useState<any[] | null>(null);
+  const [previewStats, setPreviewStats] = useState<{ add: number; update: number; delete: number; skip: number } | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const [editingTeam, setEditingTeam] = useState<string | null>(null);
   const [editCoachName, setEditCoachName] = useState('');
   const [editTeamName, setEditTeamName] = useState('');
   const [useCustomTeamName, setUseCustomTeamName] = useState(false);
 
-  // Settings form state
+  // Settings form state (year and rounds as strings for clean editing)
   const [settingsDivision, setSettingsDivision] = useState(draft.division);
-  const [settingsYear, setSettingsYear] = useState(draft.year);
-  const [settingsRounds, setSettingsRounds] = useState(draft.totalRounds);
+  const [settingsYear, setSettingsYear] = useState(String(draft.year));
+  const [settingsRounds, setSettingsRounds] = useState(String(draft.totalRounds));
   const [settingsStatus, setSettingsStatus] = useState(draft.status);
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -116,12 +119,50 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
     }
   }
 
-  async function handleImport() {
+  async function handlePreview() {
     if (importSource === 'file' && !csvFile) return;
     if (importSource === 'paste' && !pasteData.trim()) return;
 
     setImporting(true);
     setImportResult(null);
+    setPreviewDiff(null);
+    setPreviewStats(null);
+
+    let res: Response;
+
+    if (importSource === 'file' && csvFile) {
+      const formData = new FormData();
+      formData.append('file', csvFile);
+      formData.append('importMode', importAction);
+      formData.append('preview', 'true');
+      res = await fetch(`/api/drafts/${draft.id}/players/import`, {
+        method: 'POST',
+        body: formData,
+      });
+    } else {
+      res = await fetch(`/api/drafts/${draft.id}/players/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: pasteData, importMode: importAction, preview: true }),
+      });
+    }
+
+    if (res.ok) {
+      const result = await res.json();
+      setPreviewDiff(result.diff);
+      setPreviewStats(result.stats);
+      setShowPreview(true);
+    } else {
+      alert('Failed to preview import');
+    }
+    setImporting(false);
+  }
+
+  async function handleConfirmImport() {
+    if (importSource === 'file' && !csvFile) return;
+    if (importSource === 'paste' && !pasteData.trim()) return;
+
+    setImporting(true);
 
     let res: Response;
 
@@ -147,10 +188,19 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
       setImportResult(result.stats);
       setCsvFile(null);
       setPasteData('');
+      setShowPreview(false);
+      setPreviewDiff(null);
+      setPreviewStats(null);
     } else {
       alert('Failed to import data');
     }
     setImporting(false);
+  }
+
+  function cancelPreview() {
+    setShowPreview(false);
+    setPreviewDiff(null);
+    setPreviewStats(null);
   }
 
   async function assignCoachKid(playerId: string, teamId: string | null) {
@@ -191,8 +241,8 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         division: settingsDivision,
-        year: settingsYear,
-        totalRounds: settingsRounds,
+        year: parseInt(settingsYear, 10) || draft.year,
+        totalRounds: parseInt(settingsRounds, 10) || draft.totalRounds,
         status: settingsStatus,
       }),
     });
@@ -202,8 +252,8 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
       setDraft(updated);
       // Sync form state with saved values
       setSettingsDivision(updated.division);
-      setSettingsYear(updated.year);
-      setSettingsRounds(updated.totalRounds);
+      setSettingsYear(String(updated.year));
+      setSettingsRounds(String(updated.totalRounds));
       setSettingsStatus(updated.status);
     } else {
       alert('Failed to save settings');
@@ -213,8 +263,8 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
 
   const settingsChanged =
     settingsDivision !== draft.division ||
-    settingsYear !== draft.year ||
-    settingsRounds !== draft.totalRounds ||
+    parseInt(settingsYear, 10) !== draft.year ||
+    parseInt(settingsRounds, 10) !== draft.totalRounds ||
     settingsStatus !== draft.status;
 
   function downloadSampleCsv() {
@@ -608,53 +658,144 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
                 </button>
               </div>
 
-              {importSource === 'paste' ? (
-                <div className="space-y-4">
-                  <textarea
-                    value={pasteData}
-                    onChange={(e) => setPasteData(e.target.value)}
-                    placeholder="Select your data in Google Sheets (including header row) and paste here..."
-                    className="w-full h-40 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                  />
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm text-gray-500">
-                      Paste directly from Google Sheets (tab-separated) or CSV format
-                    </p>
+              {/* Preview Diff */}
+              {showPreview && previewDiff && previewStats && (
+                <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-3 border-b flex justify-between items-center">
+                    <h3 className="font-semibold text-gray-900">Import Preview</h3>
+                    <div className="flex gap-4 text-sm">
+                      {previewStats.add > 0 && (
+                        <span className="text-green-600 font-medium">+{previewStats.add} new</span>
+                      )}
+                      {previewStats.update > 0 && (
+                        <span className="text-blue-600 font-medium">{previewStats.update} updated</span>
+                      )}
+                      {previewStats.delete > 0 && (
+                        <span className="text-red-600 font-medium">-{previewStats.delete} deleted</span>
+                      )}
+                      {previewStats.skip > 0 && (
+                        <span className="text-gray-500">{previewStats.skip} unchanged</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    <table className="min-w-full divide-y divide-gray-200 text-sm">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Change</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Player</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Details</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {previewDiff.filter(d => d.type !== 'skip').map((entry, idx) => (
+                          <tr key={idx} className={
+                            entry.type === 'add' ? 'bg-green-50' :
+                            entry.type === 'update' ? 'bg-blue-50' :
+                            entry.type === 'delete' ? 'bg-red-50' : ''
+                          }>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                entry.type === 'add' ? 'bg-green-100 text-green-800' :
+                                entry.type === 'update' ? 'bg-blue-100 text-blue-800' :
+                                entry.type === 'delete' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {entry.type === 'add' ? 'Add' : entry.type === 'update' ? 'Update' : entry.type === 'delete' ? 'Delete' : 'Skip'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 font-medium">{entry.player.fullName}</td>
+                            <td className="px-3 py-2 text-gray-600">
+                              {entry.type === 'add' && (
+                                <span>#{entry.player.rankingNumber} {entry.player.isCoachKid && '(Coach Kid)'}</span>
+                              )}
+                              {entry.type === 'update' && entry.changes && (
+                                <span className="text-xs">
+                                  {entry.changes.map((c: any, i: number) => (
+                                    <span key={c.field}>
+                                      {i > 0 && ', '}
+                                      <span className="font-medium">{c.field}</span>: {String(c.from ?? '—')} → {String(c.to ?? '—')}
+                                    </span>
+                                  ))}
+                                </span>
+                              )}
+                              {entry.type === 'delete' && (
+                                <span className="text-red-600">Will be removed</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="bg-gray-50 px-4 py-3 border-t flex justify-end gap-3">
                     <button
-                      onClick={handleImport}
-                      disabled={!pasteData.trim() || importing}
+                      onClick={cancelPreview}
+                      className="py-2 px-4 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleConfirmImport}
+                      disabled={importing}
                       className="bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
                     >
-                      {importing ? 'Importing...' : 'Import Data'}
+                      {importing ? 'Importing...' : 'Confirm Import'}
                     </button>
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex gap-4 items-center">
-                    <label className="flex-1 flex items-center gap-3">
-                      <span className="py-2 px-4 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition cursor-pointer">
-                        Choose File
-                      </span>
-                      <span className="text-sm text-gray-600">
-                        {csvFile ? csvFile.name : 'No file selected'}
-                      </span>
-                      <input
-                        type="file"
-                        accept=".csv,.tsv,.txt"
-                        onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                        className="hidden"
+              )}
+
+              {!showPreview && (
+                <>
+                  {importSource === 'paste' ? (
+                    <div className="space-y-4">
+                      <textarea
+                        value={pasteData}
+                        onChange={(e) => setPasteData(e.target.value)}
+                        placeholder="Select your data in Google Sheets (including header row) and paste here..."
+                        className="w-full h-40 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
                       />
-                    </label>
-                    <button
-                      onClick={handleImport}
-                      disabled={!csvFile || importing}
-                      className="bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
-                    >
-                      {importing ? 'Importing...' : 'Import CSV'}
-                    </button>
-                  </div>
-                </div>
+                      <div className="flex justify-between items-center">
+                        <p className="text-sm text-gray-500">
+                          Paste directly from Google Sheets (tab-separated) or CSV format
+                        </p>
+                        <button
+                          onClick={handlePreview}
+                          disabled={!pasteData.trim() || importing}
+                          className="bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+                        >
+                          {importing ? 'Loading...' : 'Preview Changes'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex gap-4 items-center">
+                        <label className="flex-1 flex items-center gap-3">
+                          <span className="py-2 px-4 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition cursor-pointer">
+                            Choose File
+                          </span>
+                          <span className="text-sm text-gray-600">
+                            {csvFile ? csvFile.name : 'No file selected'}
+                          </span>
+                          <input
+                            type="file"
+                            accept=".csv,.tsv,.txt"
+                            onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                            className="hidden"
+                          />
+                        </label>
+                        <button
+                          onClick={handlePreview}
+                          disabled={!csvFile || importing}
+                          className="bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+                        >
+                          {importing ? 'Loading...' : 'Preview Changes'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               <div className="mt-4 pt-4 border-t flex justify-between items-center">
@@ -690,9 +831,10 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={settingsYear}
-                  onChange={(e) => setSettingsYear(parseInt(e.target.value, 10) || 0)}
+                  onChange={(e) => setSettingsYear(e.target.value.replace(/\D/g, ''))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="e.g., 2025"
                 />
@@ -700,11 +842,10 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Total Rounds</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={settingsRounds}
-                  onChange={(e) => setSettingsRounds(parseInt(e.target.value, 10) || 1)}
-                  min={1}
-                  max={20}
+                  onChange={(e) => setSettingsRounds(e.target.value.replace(/\D/g, ''))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
