@@ -1,38 +1,66 @@
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { drafts } from '@/lib/schema';
-import { desc } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
+import { auth } from '@/lib/auth';
+import SignOutButton from '@/components/SignOutButton';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboard() {
-  const cookieStore = await cookies();
-  const isAuth = cookieStore.get('admin_auth')?.value === 'true';
+  const session = await auth();
 
-  if (!isAuth) {
-    redirect('/admin/login');
+  if (!session?.user) {
+    redirect('/login');
   }
 
-  const allDrafts = await db.select().from(drafts).orderBy(desc(drafts.year), drafts.division);
+  // Filter drafts by user (unless super admin, then show all)
+  const userDrafts = session.user.isSuperAdmin
+    ? await db.select().from(drafts).orderBy(desc(drafts.year), drafts.division)
+    : await db
+        .select()
+        .from(drafts)
+        .where(eq(drafts.userId, session.user.id))
+        .orderBy(desc(drafts.year), drafts.division);
 
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-6xl mx-auto">
+        {/* Header with user menu */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Draft Night Admin</h1>
-          <Link
-            href="/admin/drafts/new"
-            className="bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition"
-          >
-            New Draft
-          </Link>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">My Drafts</h1>
+            <p className="text-gray-600">Welcome, {session.user.name}</p>
+          </div>
+          <div className="flex items-center gap-4">
+            {session.user.isSuperAdmin && (
+              <Link
+                href="/super-admin"
+                className="text-purple-600 hover:text-purple-800 font-medium"
+              >
+                Super Admin
+              </Link>
+            )}
+            <Link
+              href="/admin/drafts/new"
+              className="bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition"
+            >
+              New Draft
+            </Link>
+            <SignOutButton />
+          </div>
         </div>
 
-        {allDrafts.length === 0 ? (
+        {userDrafts.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-lg shadow">
-            <p className="text-gray-500">No drafts yet. Create your first draft!</p>
+            <p className="text-gray-500 mb-4">No drafts yet. Create your first draft!</p>
+            <Link
+              href="/admin/drafts/new"
+              className="bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition"
+            >
+              Create Draft
+            </Link>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -49,7 +77,7 @@ export default async function AdminDashboard() {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Access Key
+                    Coach View Link
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -57,7 +85,7 @@ export default async function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {allDrafts.map((draft) => (
+                {userDrafts.map((draft) => (
                   <tr key={draft.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {draft.year}
@@ -78,8 +106,10 @@ export default async function AdminDashboard() {
                         {draft.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
-                      {draft.accessKey}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <code className="bg-gray-100 px-2 py-1 rounded text-xs">
+                        /draft/{draft.accessKey}
+                      </code>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                       <Link

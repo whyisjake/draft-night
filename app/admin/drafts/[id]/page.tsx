@@ -1,8 +1,8 @@
-import { cookies } from 'next/headers';
 import { redirect, notFound } from 'next/navigation';
 import { db } from '@/lib/db';
 import { drafts, teams, players } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
+import { auth } from '@/lib/auth';
 import DraftSetup from './DraftSetup';
 
 export const dynamic = 'force-dynamic';
@@ -13,15 +13,19 @@ interface Props {
 
 export default async function DraftSetupPage({ params }: Props) {
   const { id } = await params;
-  const cookieStore = await cookies();
-  const isAuth = cookieStore.get('admin_auth')?.value === 'true';
+  const session = await auth();
 
-  if (!isAuth) {
-    redirect('/admin/login');
+  if (!session?.user) {
+    redirect('/login');
   }
 
   const [draft] = await db.select().from(drafts).where(eq(drafts.id, id));
   if (!draft) {
+    notFound();
+  }
+
+  // Check ownership (unless super admin)
+  if (!session.user.isSuperAdmin && draft.userId !== session.user.id) {
     notFound();
   }
 

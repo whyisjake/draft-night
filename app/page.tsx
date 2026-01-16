@@ -1,8 +1,48 @@
 import Link from 'next/link';
+import { auth } from '@/lib/auth';
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth();
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+      {/* Header */}
+      <header className="bg-white border-b">
+        <div className="max-w-4xl mx-auto px-8 py-4 flex justify-between items-center">
+          <Link href="/" className="text-xl font-bold text-gray-900">
+            Draft Night
+          </Link>
+          <nav className="flex items-center gap-4">
+            {session?.user ? (
+              <>
+                <span className="text-gray-600 text-sm">Hi, {session.user.name?.split(' ')[0]}</span>
+                <Link
+                  href="/admin"
+                  className="bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition text-sm"
+                >
+                  My Drafts
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="text-gray-600 hover:text-gray-900 font-medium text-sm"
+                >
+                  Log In
+                </Link>
+                <Link
+                  href="/login"
+                  className="bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition text-sm"
+                >
+                  Sign Up Free
+                </Link>
+              </>
+            )}
+          </nav>
+        </div>
+      </header>
+
       {/* Hero Section */}
       <div className="max-w-4xl mx-auto px-8 py-16">
         <div className="text-center mb-12">
@@ -15,14 +55,16 @@ export default function Home() {
         {/* Action Cards */}
         <div className="grid md:grid-cols-2 gap-6 mb-16">
           <Link
-            href="/admin"
+            href={session?.user ? "/admin" : "/login"}
             className="block bg-white p-8 rounded-xl shadow-sm hover:shadow-md transition border border-gray-200"
           >
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Run a Draft</h2>
             <p className="text-gray-600 mb-4">
               Create and manage drafts, import players, control the pick order.
             </p>
-            <span className="text-blue-600 font-medium">Admin Login &rarr;</span>
+            <span className="text-blue-600 font-medium">
+              {session?.user ? "Go to My Drafts" : "Sign in to get started"} &rarr;
+            </span>
           </Link>
 
           <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">

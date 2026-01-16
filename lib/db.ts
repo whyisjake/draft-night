@@ -4,7 +4,7 @@ import * as schema from './schema';
 
 let _db: NeonHttpDatabase<typeof schema> | null = null;
 
-function getDb(): NeonHttpDatabase<typeof schema> {
+export function getDb(): NeonHttpDatabase<typeof schema> {
   if (_db) return _db;
 
   if (!process.env.DATABASE_URL) {
@@ -16,6 +16,7 @@ function getDb(): NeonHttpDatabase<typeof schema> {
   return _db;
 }
 
+// Proxy for lazy initialization (for general use)
 export const db = new Proxy({} as NeonHttpDatabase<typeof schema>, {
   get(_, prop) {
     return (getDb() as any)[prop];
