@@ -24,6 +24,9 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
   const [players, setPlayers] = useState(initialPlayers);
   const [connected, setConnected] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'ranking' | 'rating' | 'name' | 'age'>('ranking');
+  const [showDrafted, setShowDrafted] = useState(false);
+  const [highlightedPlayerId, setHighlightedPlayerId] = useState<string | null>(null);
   const [myTeamId, setMyTeamId] = useState<string | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
@@ -180,18 +183,33 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
     }
   }, [currentTeam?.id, myTeamId, notificationsEnabled, draft.currentRound, teams]);
 
-  // Get available players (not drafted)
-  const availablePlayers = useMemo(() => {
-    let available = players.filter((p) => !p.isDrafted);
+  // Get players to display (available or drafted based on toggle)
+  const displayedPlayers = useMemo(() => {
+    let filtered = players.filter((p) => (showDrafted ? p.isDrafted : !p.isDrafted));
 
     if (searchTerm) {
-      available = available.filter((p) =>
+      filtered = filtered.filter((p) =>
         p.fullName.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    return available.sort((a, b) => (a.rankingNumber || 999) - (b.rankingNumber || 999));
-  }, [players, searchTerm]);
+    return filtered.sort((a, b) => {
+      if (showDrafted) {
+        // Sort drafted players by pick number
+        return (a.pickNumber || 999) - (b.pickNumber || 999);
+      }
+      switch (sortBy) {
+        case 'rating':
+          return (b.rating || 0) - (a.rating || 0);
+        case 'name':
+          return a.fullName.localeCompare(b.fullName);
+        case 'age':
+          return (b.llAge || 0) - (a.llAge || 0);
+        default:
+          return (a.rankingNumber || 999) - (b.rankingNumber || 999);
+      }
+    });
+  }, [players, searchTerm, sortBy, showDrafted]);
 
   // Build draft board grid - columns always match team order (by draft position)
   const draftBoard = useMemo(() => {
@@ -375,12 +393,15 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
                       {row.map((player, colIndex) => {
                         // Check if this cell is the current pick (column matches current team)
                         const isCurrentPick = isCurrentRound && teams[colIndex]?.id === currentTeam?.id;
+                        const isHighlighted = player?.id === highlightedPlayerId;
 
                         return (
                           <td
                             key={colIndex}
                             className={`px-2 py-2 text-xs text-center border ${
-                              isCurrentPick && !isComplete
+                              isHighlighted
+                                ? 'bg-blue-300 border-blue-600 border-2 ring-2 ring-blue-400'
+                                : isCurrentPick && !isComplete
                                 ? 'bg-green-200 border-green-500 border-2'
                                 : player
                                 ? player.isCoachKid
@@ -406,26 +427,72 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
         {/* Player List */}
         <div className="w-80 bg-white border-l flex flex-col">
           <div className="p-4 border-b">
-            <h2 className="font-bold text-gray-900 mb-2">Available Players ({availablePlayers.length})</h2>
+            <div className="flex gap-2 mb-2">
+              <button
+                onClick={() => { setShowDrafted(false); setHighlightedPlayerId(null); }}
+                className={`flex-1 py-1 text-sm font-medium rounded ${
+                  !showDrafted ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                Available ({players.filter(p => !p.isDrafted).length})
+              </button>
+              <button
+                onClick={() => setShowDrafted(true)}
+                className={`flex-1 py-1 text-sm font-medium rounded ${
+                  showDrafted ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                Drafted ({players.filter(p => p.isDrafted).length})
+              </button>
+            </div>
             <input
               type="text"
               placeholder="Search players..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2"
             />
+            {!showDrafted && (
+              <div className="flex gap-1">
+                {(['ranking', 'rating', 'name', 'age'] as const).map((sort) => (
+                  <button
+                    key={sort}
+                    onClick={() => setSortBy(sort)}
+                    className={`px-2 py-1 text-xs rounded ${
+                      sortBy === sort ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {sort}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex-1 overflow-auto">
-            {availablePlayers.map((player) => (
+            {displayedPlayers.map((player) => (
               <div
                 key={player.id}
-                className={`p-3 border-b ${player.isCoachKid ? 'bg-yellow-50' : ''}`}
+                onClick={() => showDrafted && setHighlightedPlayerId(
+                  highlightedPlayerId === player.id ? null : player.id
+                )}
+                className={`p-3 border-b ${player.isCoachKid ? 'bg-yellow-50' : ''} ${
+                  showDrafted ? 'cursor-pointer hover:bg-gray-50' : ''
+                } ${highlightedPlayerId === player.id ? 'bg-blue-100 border-l-4 border-l-blue-600' : ''}`}
               >
                 <div className="font-medium text-gray-900">{player.fullName}</div>
                 <div className="text-xs text-gray-500">
-                  #{player.rankingNumber} | Rating: {player.rating?.toFixed(1)} | Age: {player.llAge}
-                  {player.isCoachKid && <span className="ml-1 text-yellow-600">(Coach Kid)</span>}
+                  {showDrafted ? (
+                    <>
+                      Pick #{player.pickNumber} | Round {player.roundDrafted} |{' '}
+                      {teams.find(t => t.id === player.draftedByTeamId)?.coachNames}
+                    </>
+                  ) : (
+                    <>
+                      #{player.rankingNumber} | Rating: {player.rating?.toFixed(1)} | Age: {player.llAge}
+                      {player.isCoachKid && <span className="ml-1 text-yellow-600">(Coach Kid)</span>}
+                    </>
+                  )}
                 </div>
                 {player.notes && (
                   <div className="text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded px-2 py-1 mt-2">
