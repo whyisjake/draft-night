@@ -135,38 +135,14 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
     return () => clearInterval(pollInterval);
   }, [draft.id]);
 
-  // Connect to SSE for real-time updates
+  // Connect to SSE for connection status indicator only
+  // Note: SSE events are unreliable on Vercel serverless (different instances),
+  // so we rely on polling for actual state updates
   useEffect(() => {
     const eventSource = new EventSource(`/api/drafts/${draft.id}/events`);
 
     eventSource.addEventListener('connected', () => {
       setConnected(true);
-      // Fetch full state on connect to catch any missed events
-      refreshState();
-    });
-
-    eventSource.addEventListener('pick', (event) => {
-      const data = JSON.parse(event.data);
-      setDraft(data.draft);
-      setPlayers((prev) => prev.map((p) => (p.id === data.player.id ? data.player : p)));
-    });
-
-    eventSource.addEventListener('undo', (event) => {
-      const data = JSON.parse(event.data);
-      setDraft(data.draft);
-      if (data.player) {
-        setPlayers((prev) => prev.map((p) => (p.id === data.player.id ? data.player : p)));
-      }
-    });
-
-    eventSource.addEventListener('playerUpdate', (event) => {
-      const data = JSON.parse(event.data);
-      setPlayers((prev) => prev.map((p) => (p.id === data.player.id ? data.player : p)));
-    });
-
-    eventSource.addEventListener('timerReset', (event) => {
-      const data = JSON.parse(event.data);
-      setDraft(data.draft);
     });
 
     eventSource.onerror = () => {
