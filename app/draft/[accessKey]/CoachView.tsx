@@ -341,7 +341,9 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
                   {player.isCoachKid && <span className="ml-1 text-yellow-600">(Coach Kid)</span>}
                 </div>
                 {player.notes && (
-                  <div className="text-xs text-gray-500 italic mt-1">{player.notes}</div>
+                  <div className="text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded px-2 py-1 mt-2">
+                    {player.notes}
+                  </div>
                 )}
               </div>
             ))}

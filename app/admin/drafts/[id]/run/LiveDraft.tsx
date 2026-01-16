@@ -350,7 +350,11 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
                     </div>
                   ) : (
                     <div
-                      className="text-xs text-gray-500 italic cursor-text"
+                      className={`text-xs cursor-text rounded px-2 py-1 ${
+                        player.notes
+                          ? 'text-blue-800 bg-blue-50 border border-blue-200'
+                          : 'text-gray-400 italic'
+                      }`}
                       onClick={(e) => {
                         e.stopPropagation();
                         setEditingNotes(player.id);
