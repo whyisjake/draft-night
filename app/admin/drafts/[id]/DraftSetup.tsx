@@ -419,7 +419,7 @@ export default function DraftSetup({ draft, teams: initialTeams, players: initia
                                 <option value="">Select team...</option>
                                 {teams.map((team) => (
                                   <option key={team.id} value={team.id}>
-                                    {team.coachNames}
+                                    {team.coachNames}{team.name ? ` (${team.name})` : ''}
                                   </option>
                                 ))}
                               </select>
@@ -442,7 +442,7 @@ export default function DraftSetup({ draft, teams: initialTeams, players: initia
                     <li key={p.id}>
                       {p.fullName} - Round {p.coachKidRound}
                       {p.coachKidTeamId
-                        ? ` → ${teams.find((t) => t.id === p.coachKidTeamId)?.coachNames}`
+                        ? ` → ${teams.find((t) => t.id === p.coachKidTeamId)?.coachNames}${teams.find((t) => t.id === p.coachKidTeamId)?.name ? ` (${teams.find((t) => t.id === p.coachKidTeamId)?.name})` : ''}`
                         : ' (not assigned)'}
                     </li>
                   ))}
