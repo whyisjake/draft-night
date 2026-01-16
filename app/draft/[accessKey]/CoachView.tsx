@@ -54,9 +54,20 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
     }
   }
 
-  // Play beeps during countdown
+  // Calculate current team based on snake draft
+  const currentTeam = useMemo(() => {
+    const isForward = draft.currentRound % 2 === 1;
+    const position = isForward ? draft.currentPick : teams.length - draft.currentPick + 1;
+    return teams.find((t) => t.draftPosition === position);
+  }, [draft.currentRound, draft.currentPick, teams]);
+
+  // Play beeps during countdown - only for the selected team
   useEffect(() => {
-    if (!soundEnabled) return;
+    if (!soundEnabled || !myTeamId) return;
+
+    // Only beep when it's the selected team's turn
+    const isMyTeamsTurn = currentTeam?.id === myTeamId;
+    if (!isMyTeamsTurn) return;
 
     // Beep at 10, 5, 4, 3, 2, 1, 0 seconds
     if (timeRemaining <= 10 && timeRemaining !== lastBeepTime.current) {
@@ -72,7 +83,7 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
         playBeep(700, 100);
       }
     }
-  }, [timeRemaining, soundEnabled]);
+  }, [timeRemaining, soundEnabled, currentTeam?.id, myTeamId]);
 
   // Timer countdown - recalculate from server time every second
   useEffect(() => {
@@ -156,13 +167,6 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
       eventSource.close();
     };
   }, [draft.id]);
-
-  // Calculate current team based on snake draft
-  const currentTeam = useMemo(() => {
-    const isForward = draft.currentRound % 2 === 1;
-    const position = isForward ? draft.currentPick : teams.length - draft.currentPick + 1;
-    return teams.find((t) => t.draftPosition === position);
-  }, [draft.currentRound, draft.currentPick, teams]);
 
   // Send notification when it's my turn
   useEffect(() => {
