@@ -27,8 +27,52 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
   const [myTeamId, setMyTeamId] = useState<string | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [soundEnabled, setSoundEnabled] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(() => calculateTimeRemaining(initialDraft.pickStartedAt));
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastBeepTime = useRef<number>(0);
+
+  // Play beep sound for countdown
+  function playBeep(frequency: number = 800, duration: number = 150) {
+    if (!soundEnabled) return;
+    try {
+      const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.value = frequency;
+      oscillator.type = 'sine';
+      gainNode.gain.value = 0.3;
+
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + duration / 1000);
+    } catch {
+      // Audio not supported
+    }
+  }
+
+  // Play beeps during countdown
+  useEffect(() => {
+    if (!soundEnabled) return;
+
+    // Beep at 10, 5, 4, 3, 2, 1, 0 seconds
+    if (timeRemaining <= 10 && timeRemaining !== lastBeepTime.current) {
+      lastBeepTime.current = timeRemaining;
+      if (timeRemaining === 0) {
+        // Final alarm - three quick beeps
+        playBeep(1000, 200);
+        setTimeout(() => playBeep(1000, 200), 250);
+        setTimeout(() => playBeep(1000, 200), 500);
+      } else if (timeRemaining <= 5) {
+        playBeep(900, 150);
+      } else {
+        playBeep(700, 100);
+      }
+    }
+  }, [timeRemaining, soundEnabled]);
 
   // Timer countdown - recalculate from server time every second
   useEffect(() => {
@@ -219,6 +263,32 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
                 </select>
               )}
             </div>
+            {/* Sound Toggle */}
+            <button
+              onClick={() => {
+                setSoundEnabled(!soundEnabled);
+                if (!soundEnabled) {
+                  // Play a test beep when enabling
+                  const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+                  const oscillator = audioContext.createOscillator();
+                  const gainNode = audioContext.createGain();
+                  oscillator.connect(gainNode);
+                  gainNode.connect(audioContext.destination);
+                  oscillator.frequency.value = 700;
+                  oscillator.type = 'sine';
+                  gainNode.gain.value = 0.3;
+                  oscillator.start();
+                  oscillator.stop(audioContext.currentTime + 0.1);
+                }
+              }}
+              className={`px-3 py-1 rounded text-sm ${
+                soundEnabled
+                  ? 'bg-green-100 text-green-700 border border-green-300'
+                  : 'bg-gray-100 text-gray-600 border border-gray-300'
+              }`}
+            >
+              {soundEnabled ? '🔊 Sound On' : '🔇 Sound Off'}
+            </button>
             <div
               className={`flex items-center gap-2 text-sm ${
                 connected ? 'text-green-600' : 'text-red-600'
