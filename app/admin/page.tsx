@@ -33,18 +33,18 @@ export default async function AdminDashboard() {
             <h1 className="text-3xl font-bold text-gray-900">My Drafts</h1>
             <p className="text-gray-600">Welcome, {session.user.name}</p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {session.user.isSuperAdmin && (
               <Link
                 href="/super-admin"
-                className="text-purple-600 hover:text-purple-800 font-medium"
+                className="py-2 px-4 rounded-lg font-medium border border-purple-300 text-purple-600 hover:bg-purple-50 transition"
               >
                 Super Admin
               </Link>
             )}
             <Link
               href="/admin/drafts/new"
-              className="bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition"
+              className="py-2 px-4 rounded-lg font-medium border border-blue-300 text-blue-600 hover:bg-blue-50 transition"
             >
               New Draft
             </Link>
