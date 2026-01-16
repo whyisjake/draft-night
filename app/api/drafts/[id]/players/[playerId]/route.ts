@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { players } from '@/lib/schema';
 import { eq, and } from 'drizzle-orm';
+import { broadcast } from '@/lib/events';
 
 interface RouteParams {
   params: Promise<{ id: string; playerId: string }>;
@@ -33,5 +34,9 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   await db.update(players).set(updates).where(and(eq(players.id, playerId), eq(players.draftId, id)));
 
   const [updated] = await db.select().from(players).where(eq(players.id, playerId));
+
+  // Broadcast player update to coach view
+  broadcast(id, 'playerUpdate', { player: updated });
+
   return NextResponse.json(updated);
 }

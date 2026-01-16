@@ -86,6 +86,11 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
       setTimeRemaining(PICK_TIME_SECONDS); // Reset timer on undo
     });
 
+    eventSource.addEventListener('playerUpdate', (event) => {
+      const data = JSON.parse(event.data);
+      setPlayers((prev) => prev.map((p) => (p.id === data.player.id ? data.player : p)));
+    });
+
     eventSource.onerror = () => {
       setConnected(false);
     };
