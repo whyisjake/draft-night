@@ -249,7 +249,7 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
             <table className="min-w-full">
               <thead className="bg-gray-800 text-white sticky top-0">
                 <tr>
-                  <th className="px-2 py-2 text-xs font-medium text-left w-16">Round</th>
+                  <th className="px-2 py-2 text-xs font-medium text-right w-16">Round</th>
                   {teams.map((team) => {
                     const colors = getTeamColors(team.name);
                     const isOnClock = currentTeam?.id === team.id && !isComplete;
@@ -279,7 +279,7 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
                   const isCurrentRound = round === draft.currentRound;
                   return (
                     <tr key={round} className={isCurrentRound && !isComplete ? 'bg-green-50' : ''}>
-                      <td className="px-2 py-2 text-sm font-bold text-gray-900 border-r">{round}</td>
+                      <td className="px-2 py-2 text-sm font-bold text-gray-900 border-r text-right">{round}</td>
                       {row.map((player, colIndex) => {
                         // Check if this cell is the current pick (column matches current team)
                         const isCurrentPick = isCurrentRound && teams[colIndex]?.id === currentTeam?.id;
