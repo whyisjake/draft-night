@@ -4,6 +4,23 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Draft, Team, Player } from '@/lib/schema';
 import Link from 'next/link';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface Props {
   draft: Draft;
@@ -21,6 +38,141 @@ const MLB_TEAMS = [
   'Rangers', 'Rays', 'Red Sox', 'Reds', 'Rockies',
   'Royals', 'Tigers', 'Twins', 'White Sox', 'Yankees',
 ];
+
+interface SortableTeamRowProps {
+  team: Team;
+  position: number;
+  isEditing: boolean;
+  editCoachName: string;
+  editTeamName: string;
+  useCustomTeamName: boolean;
+  onEditCoachName: (value: string) => void;
+  onEditTeamName: (value: string) => void;
+  onToggleCustomName: () => void;
+  onStartEdit: () => void;
+  onSaveEdit: () => void;
+  onCancelEdit: () => void;
+  onRemove: () => void;
+}
+
+function SortableTeamRow({
+  team,
+  position,
+  isEditing,
+  editCoachName,
+  editTeamName,
+  useCustomTeamName,
+  onEditCoachName,
+  onEditTeamName,
+  onToggleCustomName,
+  onStartEdit,
+  onSaveEdit,
+  onCancelEdit,
+  onRemove,
+}: SortableTeamRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: team.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style} className={isDragging ? 'bg-blue-50' : ''}>
+      <td className="px-4 py-3 text-sm font-bold text-gray-900">
+        <div className="flex items-center gap-2">
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 touch-none"
+            title="Drag to reorder"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+            </svg>
+          </button>
+          {position}
+        </div>
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-900">
+        {isEditing ? (
+          <input
+            type="text"
+            value={editCoachName}
+            onChange={(e) => onEditCoachName(e.target.value)}
+            className="w-full px-2 py-1 border rounded"
+          />
+        ) : (
+          team.coachNames
+        )}
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-500">
+        {isEditing ? (
+          <div className="flex gap-2">
+            {useCustomTeamName ? (
+              <input
+                type="text"
+                value={editTeamName}
+                onChange={(e) => onEditTeamName(e.target.value)}
+                placeholder="Custom team name"
+                className="flex-1 px-2 py-1 border rounded"
+              />
+            ) : (
+              <select
+                value={editTeamName}
+                onChange={(e) => onEditTeamName(e.target.value)}
+                className="flex-1 px-2 py-1 border rounded"
+              >
+                <option value="">Select team...</option>
+                {MLB_TEAMS.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            )}
+            <button
+              type="button"
+              onClick={onToggleCustomName}
+              className="text-xs text-blue-600 hover:text-blue-800 whitespace-nowrap"
+            >
+              {useCustomTeamName ? 'MLB' : 'Custom'}
+            </button>
+          </div>
+        ) : (
+          team.name || '-'
+        )}
+      </td>
+      <td className="px-4 py-3 text-sm space-x-2">
+        {isEditing ? (
+          <>
+            <button onClick={onSaveEdit} className="text-green-600 hover:text-green-800">
+              Save
+            </button>
+            <button onClick={onCancelEdit} className="text-gray-600 hover:text-gray-800">
+              Cancel
+            </button>
+          </>
+        ) : (
+          <>
+            <button onClick={onStartEdit} className="text-blue-600 hover:text-blue-800">
+              Edit
+            </button>
+            <button onClick={onRemove} className="text-red-600 hover:text-red-800">
+              Remove
+            </button>
+          </>
+        )}
+      </td>
+    </tr>
+  );
+}
 
 export default function DraftSetup({ draft: initialDraft, teams: initialTeams, players: initialPlayers }: Props) {
   const router = useRouter();
@@ -59,6 +211,39 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
       return a.fullName.localeCompare(b.fullName);
     });
   }, [players]);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = teams.findIndex((t) => t.id === active.id);
+      const newIndex = teams.findIndex((t) => t.id === over.id);
+
+      const newTeams = arrayMove(teams, oldIndex, newIndex).map((team, index) => ({
+        ...team,
+        draftPosition: index + 1,
+      }));
+
+      setTeams(newTeams);
+
+      // Save new order to server
+      await fetch(`/api/drafts/${draft.id}/teams/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teamIds: newTeams.map((t) => t.id),
+        }),
+      });
+    }
+  }
 
   async function addTeam() {
     if (!newCoachName.trim()) return;
@@ -390,117 +575,64 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
                 </button>
               </div>
 
+              {teams.length > 1 && (
+                <p className="text-sm text-gray-500 mb-4">
+                  Drag rows to reorder teams
+                </p>
+              )}
+
               {teams.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">No teams yet. Add teams to set the draft order.</p>
               ) : (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Draft Position
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Coach(es)
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Team Name
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {teams.map((team) => (
-                      <tr key={team.id}>
-                        <td className="px-4 py-3 text-sm font-bold text-gray-900">{team.draftPosition}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {editingTeam === team.id ? (
-                            <input
-                              type="text"
-                              value={editCoachName}
-                              onChange={(e) => setEditCoachName(e.target.value)}
-                              className="w-full px-2 py-1 border rounded"
-                            />
-                          ) : (
-                            team.coachNames
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500">
-                          {editingTeam === team.id ? (
-                            <div className="flex gap-2">
-                              {useCustomTeamName ? (
-                                <input
-                                  type="text"
-                                  value={editTeamName}
-                                  onChange={(e) => setEditTeamName(e.target.value)}
-                                  placeholder="Custom team name"
-                                  className="flex-1 px-2 py-1 border rounded"
-                                />
-                              ) : (
-                                <select
-                                  value={editTeamName}
-                                  onChange={(e) => setEditTeamName(e.target.value)}
-                                  className="flex-1 px-2 py-1 border rounded"
-                                >
-                                  <option value="">Select team...</option>
-                                  {MLB_TEAMS.map((name) => (
-                                    <option key={name} value={name}>{name}</option>
-                                  ))}
-                                </select>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setUseCustomTeamName(!useCustomTeamName);
-                                  setEditTeamName('');
-                                }}
-                                className="text-xs text-blue-600 hover:text-blue-800 whitespace-nowrap"
-                              >
-                                {useCustomTeamName ? 'MLB' : 'Custom'}
-                              </button>
-                            </div>
-                          ) : (
-                            team.name || '-'
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm space-x-2">
-                          {editingTeam === team.id ? (
-                            <>
-                              <button
-                                onClick={() => saveTeamEdit(team.id)}
-                                className="text-green-600 hover:text-green-800"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={() => setEditingTeam(null)}
-                                className="text-gray-600 hover:text-gray-800"
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => startEditingTeam(team)}
-                                className="text-blue-600 hover:text-blue-800"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => removeTeam(team.id)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                Remove
-                              </button>
-                            </>
-                          )}
-                        </td>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Draft Position
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Coach(es)
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Team Name
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Actions
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <SortableContext items={teams.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {teams.map((team, index) => (
+                          <SortableTeamRow
+                            key={team.id}
+                            team={team}
+                            position={index + 1}
+                            isEditing={editingTeam === team.id}
+                            editCoachName={editCoachName}
+                            editTeamName={editTeamName}
+                            useCustomTeamName={useCustomTeamName}
+                            onEditCoachName={setEditCoachName}
+                            onEditTeamName={setEditTeamName}
+                            onToggleCustomName={() => {
+                              setUseCustomTeamName(!useCustomTeamName);
+                              setEditTeamName('');
+                            }}
+                            onStartEdit={() => startEditingTeam(team)}
+                            onSaveEdit={() => saveTeamEdit(team.id)}
+                            onCancelEdit={() => setEditingTeam(null)}
+                            onRemove={() => removeTeam(team.id)}
+                          />
+                        ))}
+                      </tbody>
+                    </SortableContext>
+                  </table>
+                </DndContext>
               )}
             </div>
           </div>
