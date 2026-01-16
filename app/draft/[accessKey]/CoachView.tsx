@@ -112,12 +112,28 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
     }
   }
 
+  // Fetch full state from server (used on connect/reconnect)
+  async function refreshState() {
+    try {
+      const res = await fetch(`/api/drafts/${draft.id}/state`);
+      if (res.ok) {
+        const data = await res.json();
+        setDraft(data.draft);
+        setPlayers(data.players);
+      }
+    } catch {
+      // Ignore fetch errors, will retry on next reconnect
+    }
+  }
+
   // Connect to SSE for real-time updates
   useEffect(() => {
     const eventSource = new EventSource(`/api/drafts/${draft.id}/events`);
 
     eventSource.addEventListener('connected', () => {
       setConnected(true);
+      // Fetch full state on connect to catch any missed events
+      refreshState();
     });
 
     eventSource.addEventListener('pick', (event) => {
