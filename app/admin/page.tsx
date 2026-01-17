@@ -5,6 +5,7 @@ import { drafts } from '@/lib/schema';
 import { desc, eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import SignOutButton from '@/components/SignOutButton';
+import DeleteDraftButton from '@/components/DeleteDraftButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -126,6 +127,10 @@ export default async function AdminDashboard() {
                           Run
                         </Link>
                       )}
+                      <DeleteDraftButton
+                        draftId={draft.id}
+                        draftName={`${draft.year} ${draft.division}`}
+                      />
                     </td>
                   </tr>
                 ))}

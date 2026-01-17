@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Draft, Team, Player } from '@/lib/schema';
 import Link from 'next/link';
@@ -184,7 +184,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [pasteData, setPasteData] = useState('');
   const [importSource, setImportSource] = useState<'file' | 'paste'>('paste');
-  const [importAction, setImportAction] = useState<'replace' | 'addNew' | 'update'>('replace');
+  const [importAction, setImportAction] = useState<'replace' | 'addNew' | 'update'>('update');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ added: number; updated: number; skipped: number } | null>(null);
   const [previewDiff, setPreviewDiff] = useState<any[] | null>(null);
@@ -194,6 +194,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
   const [editCoachName, setEditCoachName] = useState('');
   const [editTeamName, setEditTeamName] = useState('');
   const [useCustomTeamName, setUseCustomTeamName] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
 
   // Settings form state (year and rounds as strings for clean editing)
   const [settingsDivision, setSettingsDivision] = useState(draft.division);
@@ -388,11 +389,11 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
     setPreviewStats(null);
   }
 
-  async function assignCoachKid(playerId: string, teamId: string | null) {
+  async function assignPlayerToTeam(playerId: string, teamId: string | null) {
     const res = await fetch(`/api/drafts/${draft.id}/players/${playerId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ coachKidTeamId: teamId, isCoachKid: !!teamId }),
+      body: JSON.stringify({ coachKidTeamId: teamId }),
     });
 
     if (res.ok) {
@@ -416,8 +417,13 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
     }
   }
 
-  const coachKids = players.filter((p) => p.isCoachKid);
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const preAssignedPlayers = players.filter((p) => p.coachKidTeamId);
+  const [baseUrl, setBaseUrl] = useState('');
+
+  // Set baseUrl on client side only to avoid hydration mismatch
+  useEffect(() => {
+    setBaseUrl(window.location.origin);
+  }, []);
 
   async function saveSettings() {
     setSavingSettings(true);
@@ -453,11 +459,25 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
     settingsStatus !== draft.status;
 
   function downloadSampleCsv() {
-    const headers = ['Number', 'Full Name', 'Rating', 'LL Age', 'Previous Manager', 'Notes', 'Coach Kid', 'Round', 'Team Name'];
+    const headers = [
+      'Full Name',
+      'Draft Scores',
+      'Little League Age (Baseball)',
+      'What team did you play for last year?',
+      'Previous Coach',
+      'Will the player be on a swim team this year?',
+      'Will this player be on another sports team or participating in another activity during the baseball/softball season?',
+      'Will the player be available for 80% of baseball / softball?',
+      'Teammate Request',
+      'Special Player Request',
+      'Coach Kid',
+      'Round',
+      'Team Name',
+    ];
     const sampleRows = [
-      ['1', 'John Smith', '9.5', '12', 'Coach Jones', 'Strong arm', 'No', '', ''],
-      ['2', 'Jane Doe', '8.0', '11', '', 'Fast runner', 'No', '', ''],
-      ['3', 'Mike Johnson', '7.5', '10', 'Coach Smith', '', 'Yes', '2', 'Giants'],
+      ['John Smith', '85.5', '12', 'Giants', 'Coach Jones', 'No', 'No', 'Yes', 'Mike Johnson', '', 'No', '', ''],
+      ['Jane Doe', '78.0', '11', 'Orioles', 'Coach Brown', 'Yes', 'Yes', 'Yes', '', 'Prefers outfield', 'No', '', ''],
+      ['Mike Johnson', '72.5', '12', 'Cardinals', 'Coach Smith', 'No', 'No', 'Yes', 'John Smith', '', 'Yes', '2', 'Giants'],
     ];
 
     const csvContent = [
@@ -650,39 +670,71 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Age</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Round</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Coach Kid</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assign To Team</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Age</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prev Team</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prev Coach</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase" title="Swim Team">Swim</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase" title="Available 80%">Avail</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Teammate Req</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pre-Assign Team</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {sortedPlayers.map((player) => (
-                        <tr key={player.id} className={player.isCoachKid ? 'bg-yellow-50' : ''}>
-                          <td className="px-4 py-2 text-sm">{player.rankingNumber}</td>
-                          <td className="px-4 py-2 text-sm font-medium">{player.fullName}</td>
-                          <td className="px-4 py-2 text-sm">{player.rating?.toFixed(2) || '-'}</td>
-                          <td className="px-4 py-2 text-sm">{player.llAge || '-'}</td>
-                          <td className="px-4 py-2 text-sm">{player.coachKidRound || '-'}</td>
-                          <td className="px-4 py-2 text-sm">{player.isCoachKid ? 'Yes' : 'No'}</td>
-                          <td className="px-4 py-2 text-sm">
-                            {player.isCoachKid && (
-                              <select
-                                value={player.coachKidTeamId || ''}
-                                onChange={(e) => assignCoachKid(player.id, e.target.value || null)}
-                                className="px-2 py-1 border border-gray-300 rounded text-sm"
-                              >
-                                <option value="">Select team...</option>
-                                {teams.map((team) => (
-                                  <option key={team.id} value={team.id}>
-                                    {team.coachNames}{team.name ? ` (${team.name})` : ''}
-                                  </option>
-                                ))}
-                              </select>
+                        <tr
+                          key={player.id}
+                          onClick={() => setSelectedPlayer(player)}
+                          className={`cursor-pointer hover:bg-gray-100 ${player.coachKidTeamId ? 'bg-green-50 hover:bg-green-100' : ''} ${player.swimTeam ? 'border-l-4 border-l-blue-400' : ''}`}
+                          title="Click to view details"
+                        >
+                          <td className="px-3 py-2 text-sm font-medium">
+                            {player.fullName}
+                            {player.specialRequest && (
+                              <span className="ml-1 text-amber-500" title={player.specialRequest}>*</span>
                             )}
+                          </td>
+                          <td className="px-3 py-2 text-sm">{player.rating?.toFixed(2) || '-'}</td>
+                          <td className="px-3 py-2 text-sm">{player.llAge || '-'}</td>
+                          <td className="px-3 py-2 text-sm text-gray-600 max-w-32 truncate" title={player.previousTeam || undefined}>
+                            {player.previousTeam || '-'}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-gray-600 max-w-32 truncate" title={player.previousManager || undefined}>
+                            {player.previousManager || '-'}
+                          </td>
+                          <td className="px-3 py-2 text-sm">
+                            {player.swimTeam ? (
+                              <span className="text-blue-600 font-medium">Yes</span>
+                            ) : (
+                              <span className="text-gray-400">No</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-sm">
+                            {player.availability80 === false ? (
+                              <span className="text-red-600 font-medium">No</span>
+                            ) : (
+                              <span className="text-green-600">Yes</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-gray-600 max-w-40 truncate" title={player.teammateRequest || undefined}>
+                            {player.teammateRequest || '-'}
+                          </td>
+                          <td className="px-3 py-2 text-sm" onClick={(e) => e.stopPropagation()}>
+                            <select
+                              value={player.coachKidTeamId || ''}
+                              onChange={(e) => assignPlayerToTeam(player.id, e.target.value || null)}
+                              className={`px-2 py-1 border rounded text-sm ${
+                                player.coachKidTeamId ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                              }`}
+                            >
+                              <option value="">-</option>
+                              {teams.map((team) => (
+                                <option key={team.id} value={team.id}>
+                                  {team.coachNames}{team.name ? ` (${team.name})` : ''}
+                                </option>
+                              ))}
+                            </select>
                           </td>
                         </tr>
                       ))}
@@ -692,19 +744,21 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
               </div>
             )}
 
-            {/* Coach Kids Summary */}
-            {coachKids.length > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <h3 className="font-semibold text-yellow-800 mb-2">Coach Kids ({coachKids.length})</h3>
-                <ul className="text-sm text-yellow-700 space-y-1">
-                  {coachKids.map((p) => (
-                    <li key={p.id}>
-                      {p.fullName} - Round {p.coachKidRound}
-                      {p.coachKidTeamId
-                        ? ` → ${teams.find((t) => t.id === p.coachKidTeamId)?.coachNames}${teams.find((t) => t.id === p.coachKidTeamId)?.name ? ` (${teams.find((t) => t.id === p.coachKidTeamId)?.name})` : ''}`
-                        : ' (not assigned)'}
-                    </li>
-                  ))}
+            {/* Pre-Assigned Players Summary */}
+            {preAssignedPlayers.length > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h3 className="font-semibold text-green-800 mb-2">Pre-Assigned Players ({preAssignedPlayers.length})</h3>
+                <ul className="text-sm text-green-700 space-y-1">
+                  {preAssignedPlayers.map((p) => {
+                    const team = teams.find((t) => t.id === p.coachKidTeamId);
+                    return (
+                      <li key={p.id}>
+                        {p.fullName}
+                        {p.coachKidRound && ` - Round ${p.coachKidRound}`}
+                        {team && ` → ${team.coachNames}${team.name ? ` (${team.name})` : ''}`}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             )}
@@ -797,13 +851,13 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
                     <h3 className="font-semibold text-gray-900">Import Preview</h3>
                     <div className="flex gap-4 text-sm">
                       {previewStats.add > 0 && (
-                        <span className="text-green-600 font-medium">+{previewStats.add} new</span>
+                        <span className="text-green-600 font-medium">+{previewStats.add} to add</span>
                       )}
                       {previewStats.update > 0 && (
-                        <span className="text-blue-600 font-medium">{previewStats.update} updated</span>
+                        <span className="text-blue-600 font-medium">{previewStats.update} to update</span>
                       )}
                       {previewStats.delete > 0 && (
-                        <span className="text-red-600 font-medium">-{previewStats.delete} deleted</span>
+                        <span className="text-red-600 font-medium">-{previewStats.delete} to delete</span>
                       )}
                       {previewStats.skip > 0 && (
                         <span className="text-gray-500">{previewStats.skip} unchanged</span>
@@ -838,7 +892,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
                             <td className="px-3 py-2 font-medium">{entry.player.fullName}</td>
                             <td className="px-3 py-2 text-gray-600">
                               {entry.type === 'add' && (
-                                <span>#{entry.player.rankingNumber} {entry.player.isCoachKid && '(Coach Kid)'}</span>
+                                <span>#{entry.player.rankingNumber} {entry.player.coachKidTeamId && '(Pre-assigned)'}</span>
                               )}
                               {entry.type === 'update' && entry.changes && (
                                 <span className="text-xs">
@@ -932,7 +986,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
 
               <div className="mt-4 pt-4 border-t flex justify-between items-center">
                 <p className="text-sm text-gray-500">
-                  Expected columns: Number, Full Name, Rating, LL Age, Previous Manager, Notes, Coach Kid, Round, Team Name
+                  Supports: Full Name, Draft Scores/Rating, LL Age, Previous Coach, Previous Team, Swim Team, Teammate Request, etc.
                 </p>
                 <button
                   onClick={downloadSampleCsv}
@@ -1026,6 +1080,154 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
           </div>
         )}
       </div>
+
+      {/* Player Detail Modal */}
+      {selectedPlayer && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={() => setSelectedPlayer(null)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-900">{selectedPlayer.fullName}</h2>
+              <button
+                onClick={() => setSelectedPlayer(null)}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              {/* Basic Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase">Rating</label>
+                  <p className="text-lg font-semibold">{selectedPlayer.rating?.toFixed(2) || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase">LL Age</label>
+                  <p className="text-lg font-semibold">{selectedPlayer.llAge || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase">Ranking #</label>
+                  <p className="text-lg font-semibold">{selectedPlayer.rankingNumber || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase">Pre-Assigned</label>
+                  <p className="text-lg font-semibold">
+                    {selectedPlayer.coachKidTeamId ? (
+                      <span className="text-green-600">Yes</span>
+                    ) : (
+                      'No'
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Previous Season */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Previous Season</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 uppercase">Previous Team</label>
+                    <p className="text-sm">{selectedPlayer.previousTeam || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 uppercase">Previous Coach</label>
+                    <p className="text-sm">{selectedPlayer.previousManager || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Availability */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Availability</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 uppercase">Swim Team</label>
+                    <p className={`text-sm font-medium ${selectedPlayer.swimTeam ? 'text-blue-600' : 'text-gray-600'}`}>
+                      {selectedPlayer.swimTeam ? 'Yes' : 'No'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 uppercase">Other Sports</label>
+                    <p className={`text-sm font-medium ${selectedPlayer.otherSports ? 'text-amber-600' : 'text-gray-600'}`}>
+                      {selectedPlayer.otherSports ? 'Yes' : 'No'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 uppercase">80% Available</label>
+                    <p className={`text-sm font-medium ${selectedPlayer.availability80 === false ? 'text-red-600' : 'text-green-600'}`}>
+                      {selectedPlayer.availability80 === false ? 'No' : 'Yes'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Requests */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Requests</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 uppercase">Teammate Request</label>
+                    <p className="text-sm">{selectedPlayer.teammateRequest || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 uppercase">Special Request</label>
+                    <p className="text-sm">{selectedPlayer.specialRequest || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {selectedPlayer.notes && (
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Notes</h3>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{selectedPlayer.notes}</p>
+                </div>
+              )}
+
+              {/* Pre-Assignment */}
+              {selectedPlayer.coachKidTeamId && (
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Pre-Assignment</h3>
+                  <p className="text-sm text-green-600 font-medium">
+                    Assigned to: {teams.find((t) => t.id === selectedPlayer.coachKidTeamId)?.coachNames}
+                    {teams.find((t) => t.id === selectedPlayer.coachKidTeamId)?.name
+                      ? ` (${teams.find((t) => t.id === selectedPlayer.coachKidTeamId)?.name})`
+                      : ''}
+                    {selectedPlayer.coachKidRound && ` - Round ${selectedPlayer.coachKidRound}`}
+                  </p>
+                </div>
+              )}
+
+              {/* Draft Status */}
+              {selectedPlayer.isDrafted && (
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Draft Status</h3>
+                  <p className="text-sm text-green-600 font-medium">
+                    Drafted in Round {selectedPlayer.roundDrafted}, Pick #{selectedPlayer.pickNumber}
+                    {selectedPlayer.draftedByTeamId && (
+                      <> by {teams.find((t) => t.id === selectedPlayer.draftedByTeamId)?.coachNames}</>
+                    )}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="border-t px-6 py-4 bg-gray-50">
+              <button
+                onClick={() => setSelectedPlayer(null)}
+                className="w-full py-2 px-4 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -16,14 +16,14 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Draft not found' }, { status: 404 });
   }
 
-  // Find the last pick that wasn't a coach kid
+  // Find the last pick that wasn't pre-assigned
   const allPlayers = await db
     .select()
     .from(players)
     .where(and(eq(players.draftId, id), eq(players.isDrafted, true)))
     .orderBy(desc(players.pickNumber));
 
-  const lastPick = allPlayers.find((p) => !p.isCoachKid);
+  const lastPick = allPlayers.find((p) => !p.coachKidTeamId);
 
   if (!lastPick) {
     return NextResponse.json({ error: 'No picks to undo' }, { status: 400 });

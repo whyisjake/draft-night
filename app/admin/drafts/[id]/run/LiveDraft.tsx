@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Draft, Team, Player } from '@/lib/schema';
 import { getTeamColors } from '@/lib/team-colors';
 import Link from 'next/link';
+import PlayerDetailModal from '@/components/PlayerDetailModal';
 
 const PICK_TIME_SECONDS = 60;
 
@@ -31,6 +32,7 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
   const [timeRemaining, setTimeRemaining] = useState(() => calculateTimeRemaining(draft.pickStartedAt));
   const [showResetModal, setShowResetModal] = useState(false);
   const [keepCoachKids, setKeepCoachKids] = useState(true);
+  const [viewingPlayer, setViewingPlayer] = useState<Player | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Timer countdown - recalculate from server time every second
@@ -321,8 +323,8 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
                               isCurrentPick && !isComplete
                                 ? 'bg-green-200 border-green-500 border-2'
                                 : player
-                                ? player.isCoachKid
-                                  ? 'bg-yellow-100'
+                                ? player.coachKidTeamId
+                                  ? 'bg-green-100'
                                   : 'bg-gray-50'
                                 : ''
                             }`}
@@ -373,17 +375,29 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
                 key={player.id}
                 className={`p-3 border-b cursor-pointer hover:bg-gray-50 ${
                   selectedPlayer === player.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
-                } ${player.isCoachKid ? 'bg-yellow-50' : ''}`}
+                } ${player.coachKidTeamId ? 'bg-green-50' : ''}`}
                 onClick={() => setSelectedPlayer(player.id)}
               >
                 <div className="flex justify-between items-start">
-                  <div>
+                  <div className="flex-1">
                     <div className="font-medium text-gray-900">{player.fullName}</div>
                     <div className="text-xs text-gray-500">
                       #{player.rankingNumber} | Rating: {player.rating?.toFixed(1)} | Age: {player.llAge}
-                      {player.isCoachKid && <span className="ml-1 text-yellow-600">(Coach Kid)</span>}
+                      {player.coachKidTeamId && <span className="ml-1 text-green-600">(Pre-assigned)</span>}
                     </div>
                   </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewingPlayer(player);
+                    }}
+                    className="ml-2 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                    title="View details"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </button>
                 </div>
                 <div className="mt-1">
                   {editingNotes === player.id ? (
@@ -441,6 +455,15 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
           </div>
         </div>
       </div>
+
+      {/* Player Detail Modal */}
+      {viewingPlayer && (
+        <PlayerDetailModal
+          player={viewingPlayer}
+          teams={teams}
+          onClose={() => setViewingPlayer(null)}
+        />
+      )}
     </main>
   );
 }

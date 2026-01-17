@@ -72,6 +72,7 @@ export const players = pgTable('players', {
   rating: real('rating'),
   llAge: integer('ll_age'),
   previousManager: text('previous_manager'),
+  previousTeam: text('previous_team'),
   notes: text('notes'),
   rankingNumber: integer('ranking_number'),
   isCoachKid: boolean('is_coach_kid').notNull().default(false),
@@ -81,6 +82,12 @@ export const players = pgTable('players', {
   draftedByTeamId: text('drafted_by_team_id').references(() => teams.id),
   roundDrafted: integer('round_drafted'),
   pickNumber: integer('pick_number'),
+  // Additional player info fields
+  swimTeam: boolean('swim_team').default(false),
+  otherSports: boolean('other_sports').default(false),
+  availability80: boolean('availability_80').default(true),
+  teammateRequest: text('teammate_request'),
+  specialRequest: text('special_request'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
