@@ -195,6 +195,8 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
   const [editTeamName, setEditTeamName] = useState('');
   const [useCustomTeamName, setUseCustomTeamName] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [sortBy, setSortBy] = useState<'ranking' | 'name' | 'rating' | 'age' | 'pitchCount'>('ranking');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Settings form state (year and rounds as strings for clean editing)
   const [settingsDivision, setSettingsDivision] = useState(draft.division);
@@ -203,15 +205,55 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
   const [settingsStatus, setSettingsStatus] = useState(draft.status);
   const [savingSettings, setSavingSettings] = useState(false);
 
-  // Sort players by ranking number, then by name as secondary
+  // Sort players based on current sort settings
   const sortedPlayers = useMemo(() => {
     return [...players].sort((a, b) => {
-      const rankA = a.rankingNumber || 999;
-      const rankB = b.rankingNumber || 999;
-      if (rankA !== rankB) return rankA - rankB;
-      return a.fullName.localeCompare(b.fullName);
+      let comparison = 0;
+      switch (sortBy) {
+        case 'name':
+          comparison = a.fullName.localeCompare(b.fullName);
+          break;
+        case 'rating':
+          comparison = (b.rating || 0) - (a.rating || 0); // Higher rating first by default
+          break;
+        case 'age':
+          comparison = (b.llAge || 0) - (a.llAge || 0); // Older first by default
+          break;
+        case 'pitchCount':
+          comparison = (b.pitchCount || 0) - (a.pitchCount || 0); // Higher count first by default
+          break;
+        case 'ranking':
+        default:
+          comparison = (a.rankingNumber || 999) - (b.rankingNumber || 999); // Lower ranking first
+          break;
+      }
+      // Apply sort direction
+      if (sortDirection === 'desc' && sortBy !== 'rating' && sortBy !== 'age' && sortBy !== 'pitchCount') {
+        comparison = -comparison;
+      } else if (sortDirection === 'asc' && (sortBy === 'rating' || sortBy === 'age' || sortBy === 'pitchCount')) {
+        comparison = -comparison;
+      }
+      // Secondary sort by name if primary values are equal
+      if (comparison === 0) {
+        comparison = a.fullName.localeCompare(b.fullName);
+      }
+      return comparison;
     });
-  }, [players]);
+  }, [players, sortBy, sortDirection]);
+
+  function handleSort(column: 'ranking' | 'name' | 'rating' | 'age' | 'pitchCount') {
+    if (sortBy === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortDirection('asc');
+    }
+  }
+
+  function getSortIndicator(column: 'ranking' | 'name' | 'rating' | 'age' | 'pitchCount') {
+    if (sortBy !== column) return null;
+    return sortDirection === 'asc' ? ' ▲' : ' ▼';
+  }
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -670,9 +712,31 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Age</th>
+                        <th
+                          className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('name')}
+                        >
+                          Name{getSortIndicator('name')}
+                        </th>
+                        <th
+                          className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('rating')}
+                        >
+                          Rating{getSortIndicator('rating')}
+                        </th>
+                        <th
+                          className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('age')}
+                        >
+                          Age{getSortIndicator('age')}
+                        </th>
+                        <th
+                          className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('pitchCount')}
+                          title="2025 Season Pitch Count"
+                        >
+                          Pitches{getSortIndicator('pitchCount')}
+                        </th>
                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prev Team</th>
                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prev Coach</th>
                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase" title="Swim Team">Swim</th>
@@ -697,6 +761,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
                           </td>
                           <td className="px-3 py-2 text-sm">{player.rating?.toFixed(2) || '-'}</td>
                           <td className="px-3 py-2 text-sm">{player.llAge || '-'}</td>
+                          <td className="px-3 py-2 text-sm">{player.pitchCount || '-'}</td>
                           <td className="px-3 py-2 text-sm text-gray-600 max-w-32 truncate" title={player.previousTeam || undefined}>
                             {player.previousTeam || '-'}
                           </td>
@@ -1130,7 +1195,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
               {/* Previous Season */}
               <div className="border-t pt-4">
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">Previous Season</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="text-xs font-medium text-gray-500 uppercase">Previous Team</label>
                     <p className="text-sm">{selectedPlayer.previousTeam || '-'}</p>
@@ -1138,6 +1203,10 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
                   <div>
                     <label className="text-xs font-medium text-gray-500 uppercase">Previous Coach</label>
                     <p className="text-sm">{selectedPlayer.previousManager || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 uppercase">Pitch Count</label>
+                    <p className="text-sm font-medium">{selectedPlayer.pitchCount || '-'}</p>
                   </div>
                 </div>
               </div>

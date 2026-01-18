@@ -88,6 +88,7 @@ export const players = pgTable('players', {
   availability80: boolean('availability_80').default(true),
   teammateRequest: text('teammate_request'),
   specialRequest: text('special_request'),
+  pitchCount: integer('pitch_count'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

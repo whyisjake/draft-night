@@ -26,7 +26,7 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
   const [players, setPlayers] = useState(initialPlayers);
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'ranking' | 'rating' | 'name' | 'age'>('ranking');
+  const [sortBy, setSortBy] = useState<'ranking' | 'rating' | 'name' | 'age' | 'pitches'>('ranking');
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [noteValue, setNoteValue] = useState('');
   const [timeRemaining, setTimeRemaining] = useState(() => calculateTimeRemaining(draft.pickStartedAt));
@@ -82,6 +82,8 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
           return a.fullName.localeCompare(b.fullName);
         case 'age':
           return (b.llAge || 0) - (a.llAge || 0);
+        case 'pitches':
+          return (b.pitchCount || 0) - (a.pitchCount || 0);
         default:
           return (a.rankingNumber || 999) - (b.rankingNumber || 999);
       }
@@ -354,8 +356,8 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2"
             />
-            <div className="flex gap-1">
-              {(['ranking', 'rating', 'name', 'age'] as const).map((sort) => (
+            <div className="flex gap-1 flex-wrap">
+              {(['ranking', 'rating', 'name', 'age', 'pitches'] as const).map((sort) => (
                 <button
                   key={sort}
                   onClick={() => setSortBy(sort)}
@@ -383,6 +385,7 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
                     <div className="font-medium text-gray-900">{player.fullName}</div>
                     <div className="text-xs text-gray-500">
                       #{player.rankingNumber} | Rating: {player.rating?.toFixed(1)} | Age: {player.llAge}
+                      {player.pitchCount ? ` | ⚾ ${player.pitchCount}` : ''}
                       {player.coachKidTeamId && <span className="ml-1 text-green-600">(Pre-assigned)</span>}
                     </div>
                   </div>

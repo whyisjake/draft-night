@@ -57,7 +57,7 @@ export default function PlayerDetailModal({ player, teams, onClose }: PlayerDeta
           {/* Previous Season */}
           <div className="border-t pt-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-2">Previous Season</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="text-xs font-medium text-gray-500 uppercase">Previous Team</label>
                 <p className="text-sm">{player.previousTeam || '-'}</p>
@@ -65,6 +65,10 @@ export default function PlayerDetailModal({ player, teams, onClose }: PlayerDeta
               <div>
                 <label className="text-xs font-medium text-gray-500 uppercase">Previous Coach</label>
                 <p className="text-sm">{player.previousManager || '-'}</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 uppercase">Pitch Count</label>
+                <p className="text-sm font-medium">{player.pitchCount || '-'}</p>
               </div>
             </div>
           </div>

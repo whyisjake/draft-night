@@ -30,6 +30,7 @@ interface CsvRow {
   'Will the player be available for 80% of baseball / softball?'?: string;
   'Teammate Request'?: string;
   'Special Player Request'?: string;
+  'Pitch Count'?: string;
 }
 
 type ImportMode = 'replace' | 'addNew' | 'update';
@@ -50,6 +51,7 @@ interface PlayerData {
   availability80: boolean;
   teammateRequest: string | null;
   specialRequest: string | null;
+  pitchCount: number | null;
 }
 
 interface DiffEntry {
@@ -98,6 +100,7 @@ function parseImportData(text: string, draftId: string, draftTeams: any[], exist
   if (headers.has('will the player be available for 80% of baseball / softball?')) presentFields.add('availability80');
   if (headers.has('teammate request')) presentFields.add('teammateRequest');
   if (headers.has('special player request')) presentFields.add('specialRequest');
+  if (headers.has('pitch count')) presentFields.add('pitchCount');
 
   const totalTeams = draftTeams.length || 14;
 
@@ -165,6 +168,9 @@ function parseImportData(text: string, draftId: string, draftTeams: any[], exist
     const teammateRequest = row['Teammate Request']?.trim() || null;
     const specialRequest = row['Special Player Request']?.trim() || row.Notes?.trim() || null;
 
+    // Parse pitch count
+    const pitchCount = parseInt(row['Pitch Count'] || '0') || null;
+
     parsedPlayers.push({
       fullName,
       rating,
@@ -181,6 +187,7 @@ function parseImportData(text: string, draftId: string, draftTeams: any[], exist
       availability80,
       teammateRequest,
       specialRequest,
+      pitchCount,
     });
   }
 
@@ -258,7 +265,7 @@ function getChanges(existing: any, newData: PlayerData, presentFields: Set<strin
   const allFields: (keyof PlayerData)[] = [
     'rating', 'llAge', 'previousManager', 'previousTeam', 'notes', 'rankingNumber',
     'isCoachKid', 'coachKidRound', 'coachKidTeamId',
-    'swimTeam', 'otherSports', 'availability80', 'teammateRequest', 'specialRequest'
+    'swimTeam', 'otherSports', 'availability80', 'teammateRequest', 'specialRequest', 'pitchCount'
   ];
 
   // If presentFields is provided, only compare those fields
