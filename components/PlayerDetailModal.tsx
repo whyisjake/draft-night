@@ -1,14 +1,57 @@
 'use client';
 
+import { useState } from 'react';
 import type { Player, Team } from '@/lib/schema';
 
 interface PlayerDetailModalProps {
   player: Player;
   teams: Team[];
+  draftId?: string;
   onClose: () => void;
+  onPlayerUpdate?: (player: Player) => void;
 }
 
-export default function PlayerDetailModal({ player, teams, onClose }: PlayerDetailModalProps) {
+export default function PlayerDetailModal({ player, teams, draftId, onClose, onPlayerUpdate }: PlayerDetailModalProps) {
+  const [editingRating, setEditingRating] = useState(player.rating?.toString() || '');
+  const [editingRanking, setEditingRanking] = useState(player.rankingNumber?.toString() || '');
+  const [saving, setSaving] = useState(false);
+
+  const canEdit = !!draftId && !!onPlayerUpdate;
+
+  async function saveChanges() {
+    if (!draftId || !onPlayerUpdate) return;
+    setSaving(true);
+
+    const updates: { rating?: number | null; rankingNumber?: number | null } = {};
+
+    const newRating = editingRating.trim() ? parseFloat(editingRating) : null;
+    const newRanking = editingRanking.trim() ? parseInt(editingRanking, 10) : null;
+
+    if (newRating !== player.rating) {
+      updates.rating = newRating;
+    }
+    if (newRanking !== player.rankingNumber) {
+      updates.rankingNumber = newRanking;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      setSaving(false);
+      return;
+    }
+
+    const res = await fetch(`/api/drafts/${draftId}/players/${player.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+
+    if (res.ok) {
+      const updated = await res.json();
+      onPlayerUpdate(updated);
+    }
+    setSaving(false);
+  }
+
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
@@ -32,19 +75,41 @@ export default function PlayerDetailModal({ player, teams, onClose }: PlayerDeta
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-medium text-gray-500 uppercase">Rating</label>
-              <p className="text-lg font-semibold">{player.rating?.toFixed(2) || '-'}</p>
+              {canEdit ? (
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={editingRating}
+                  onChange={(e) => setEditingRating(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 text-lg font-semibold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="-"
+                />
+              ) : (
+                <p className="text-lg font-semibold">{player.rating?.toFixed(2) || '-'}</p>
+              )}
             </div>
             <div>
               <label className="text-xs font-medium text-gray-500 uppercase">LL Age</label>
-              <p className="text-lg font-semibold">{player.llAge || '-'}</p>
+              <p className="text-lg font-semibold mt-1 px-3 py-2">{player.llAge || '-'}</p>
             </div>
             <div>
               <label className="text-xs font-medium text-gray-500 uppercase">Ranking #</label>
-              <p className="text-lg font-semibold">{player.rankingNumber || '-'}</p>
+              {canEdit ? (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={editingRanking}
+                  onChange={(e) => setEditingRanking(e.target.value.replace(/\D/g, ''))}
+                  className="w-full mt-1 px-3 py-2 text-lg font-semibold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="-"
+                />
+              ) : (
+                <p className="text-lg font-semibold">{player.rankingNumber || '-'}</p>
+              )}
             </div>
             <div>
               <label className="text-xs font-medium text-gray-500 uppercase">Pre-Assigned</label>
-              <p className="text-lg font-semibold">
+              <p className="text-lg font-semibold mt-1 px-3 py-2">
                 {player.coachKidTeamId ? (
                   <span className="text-green-600">Yes</span>
                 ) : (
@@ -148,13 +213,22 @@ export default function PlayerDetailModal({ player, teams, onClose }: PlayerDeta
             </div>
           )}
         </div>
-        <div className="border-t px-6 py-4 bg-gray-50">
+        <div className="border-t px-6 py-4 bg-gray-50 flex gap-3">
           <button
             onClick={onClose}
-            className="w-full py-2 px-4 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+            className="flex-1 py-2 px-4 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
           >
             Close
           </button>
+          {canEdit && (
+            <button
+              onClick={saveChanges}
+              disabled={saving}
+              className="flex-1 py-2 px-4 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          )}
         </div>
       </div>
     </div>

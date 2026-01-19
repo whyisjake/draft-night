@@ -195,6 +195,9 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
   const [editTeamName, setEditTeamName] = useState('');
   const [useCustomTeamName, setUseCustomTeamName] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [editingPlayerRating, setEditingPlayerRating] = useState<string>('');
+  const [editingPlayerRanking, setEditingPlayerRanking] = useState<string>('');
+  const [savingPlayer, setSavingPlayer] = useState(false);
   const [sortBy, setSortBy] = useState<'ranking' | 'name' | 'rating' | 'age' | 'pitchCount'>('ranking');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -429,6 +432,47 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
     setShowPreview(false);
     setPreviewDiff(null);
     setPreviewStats(null);
+  }
+
+  function openPlayerModal(player: Player) {
+    setSelectedPlayer(player);
+    setEditingPlayerRating(player.rating?.toString() || '');
+    setEditingPlayerRanking(player.rankingNumber?.toString() || '');
+  }
+
+  async function savePlayerEdits() {
+    if (!selectedPlayer) return;
+    setSavingPlayer(true);
+
+    const updates: { rating?: number | null; rankingNumber?: number | null } = {};
+
+    const newRating = editingPlayerRating.trim() ? parseFloat(editingPlayerRating) : null;
+    const newRanking = editingPlayerRanking.trim() ? parseInt(editingPlayerRanking, 10) : null;
+
+    if (newRating !== selectedPlayer.rating) {
+      updates.rating = newRating;
+    }
+    if (newRanking !== selectedPlayer.rankingNumber) {
+      updates.rankingNumber = newRanking;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      setSavingPlayer(false);
+      return;
+    }
+
+    const res = await fetch(`/api/drafts/${draft.id}/players/${selectedPlayer.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+
+    if (res.ok) {
+      const updated = await res.json();
+      setPlayers(players.map((p) => (p.id === selectedPlayer.id ? updated : p)));
+      setSelectedPlayer(updated);
+    }
+    setSavingPlayer(false);
   }
 
   async function assignPlayerToTeam(playerId: string, teamId: string | null) {
@@ -749,7 +793,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
                       {sortedPlayers.map((player) => (
                         <tr
                           key={player.id}
-                          onClick={() => setSelectedPlayer(player)}
+                          onClick={() => openPlayerModal(player)}
                           className={`cursor-pointer hover:bg-gray-100 ${player.coachKidTeamId ? 'bg-green-50 hover:bg-green-100' : ''} ${player.swimTeam ? 'border-l-4 border-l-blue-400' : ''}`}
                           title="Click to view details"
                         >
@@ -1170,19 +1214,33 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-medium text-gray-500 uppercase">Rating</label>
-                  <p className="text-lg font-semibold">{selectedPlayer.rating?.toFixed(2) || '-'}</p>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={editingPlayerRating}
+                    onChange={(e) => setEditingPlayerRating(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 text-lg font-semibold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="-"
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-500 uppercase">LL Age</label>
-                  <p className="text-lg font-semibold">{selectedPlayer.llAge || '-'}</p>
+                  <p className="text-lg font-semibold mt-1 px-3 py-2">{selectedPlayer.llAge || '-'}</p>
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-500 uppercase">Ranking #</label>
-                  <p className="text-lg font-semibold">{selectedPlayer.rankingNumber || '-'}</p>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={editingPlayerRanking}
+                    onChange={(e) => setEditingPlayerRanking(e.target.value.replace(/\D/g, ''))}
+                    className="w-full mt-1 px-3 py-2 text-lg font-semibold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="-"
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-500 uppercase">Pre-Assigned</label>
-                  <p className="text-lg font-semibold">
+                  <p className="text-lg font-semibold mt-1 px-3 py-2">
                     {selectedPlayer.coachKidTeamId ? (
                       <span className="text-green-600">Yes</span>
                     ) : (
@@ -1286,12 +1344,19 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
                 </div>
               )}
             </div>
-            <div className="border-t px-6 py-4 bg-gray-50">
+            <div className="border-t px-6 py-4 bg-gray-50 flex gap-3">
               <button
                 onClick={() => setSelectedPlayer(null)}
-                className="w-full py-2 px-4 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+                className="flex-1 py-2 px-4 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
               >
                 Close
+              </button>
+              <button
+                onClick={savePlayerEdits}
+                disabled={savingPlayer}
+                className="flex-1 py-2 px-4 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {savingPlayer ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>

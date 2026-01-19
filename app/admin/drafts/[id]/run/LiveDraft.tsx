@@ -170,6 +170,11 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
     setEditingNotes(null);
   }
 
+  function handlePlayerUpdate(updatedPlayer: Player) {
+    setPlayers(players.map((p) => (p.id === updatedPlayer.id ? updatedPlayer : p)));
+    setViewingPlayer(updatedPlayer);
+  }
+
   const isComplete = draft.currentRound > draft.totalRounds;
   const overallPick = (draft.currentRound - 1) * teams.length + draft.currentPick;
 
@@ -464,7 +469,9 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
         <PlayerDetailModal
           player={viewingPlayer}
           teams={teams}
+          draftId={draft.id}
           onClose={() => setViewingPlayer(null)}
+          onPlayerUpdate={handlePlayerUpdate}
         />
       )}
     </main>
