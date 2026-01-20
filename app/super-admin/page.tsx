@@ -43,7 +43,7 @@ export default async function SuperAdminDashboard() {
     .orderBy(desc(drafts.createdAt));
 
   return (
-    <main className="min-h-screen p-8 bg-gray-100">
+    <main className="flex-1 p-4 md:p-8 bg-gray-100">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>

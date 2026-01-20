@@ -5,6 +5,7 @@ import type { Draft, Team, Player } from '@/lib/schema';
 import { getTeamColors } from '@/lib/team-colors';
 import Link from 'next/link';
 import PlayerDetailModal from '@/components/PlayerDetailModal';
+import FullScreenPlayerList from '@/components/FullScreenPlayerList';
 
 const PICK_TIME_SECONDS = 60;
 
@@ -33,6 +34,7 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
   const [showResetModal, setShowResetModal] = useState(false);
   const [keepCoachKids, setKeepCoachKids] = useState(true);
   const [viewingPlayer, setViewingPlayer] = useState<Player | null>(null);
+  const [showFullPlayerList, setShowFullPlayerList] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Timer countdown - recalculate from server time every second
@@ -287,8 +289,8 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
       <div className="flex h-[calc(100vh-80px)]">
         {/* Draft Board */}
         <div className="flex-1 overflow-auto p-4">
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full">
+          <div className="bg-white rounded-lg shadow overflow-x-auto">
+            <table className="min-w-max">
               <thead className="bg-gray-800 text-white sticky top-0">
                 <tr>
                   <th className="px-2 py-2 text-xs font-medium text-right w-16">Round</th>
@@ -353,7 +355,18 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
         {/* Player List */}
         <div className="w-96 bg-white border-l flex flex-col">
           <div className="p-4 border-b">
-            <h2 className="font-bold text-gray-900 mb-2">Available Players ({availablePlayers.length})</h2>
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="font-bold text-gray-900">Available Players ({availablePlayers.length})</h2>
+              <button
+                onClick={() => setShowFullPlayerList(true)}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+                Expand
+              </button>
+            </div>
             <input
               type="text"
               placeholder="Search players..."
@@ -472,6 +485,19 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
           draftId={draft.id}
           onClose={() => setViewingPlayer(null)}
           onPlayerUpdate={handlePlayerUpdate}
+        />
+      )}
+
+      {/* Full Screen Player List */}
+      {showFullPlayerList && (
+        <FullScreenPlayerList
+          players={players}
+          teams={teams}
+          onClose={() => setShowFullPlayerList(false)}
+          onSelectPlayer={(player) => {
+            setSelectedPlayer(player.id);
+            setShowFullPlayerList(false);
+          }}
         />
       )}
     </main>

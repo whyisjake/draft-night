@@ -5,7 +5,7 @@ export default async function Home() {
   const session = await auth();
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+    <main className="flex-1 bg-gradient-to-b from-gray-50 to-gray-100">
       {/* Header */}
       <header className="bg-white border-b">
         <div className="max-w-4xl mx-auto px-8 py-4 flex justify-between items-center">
@@ -155,37 +155,6 @@ export default async function Home() {
           </p>
         </div>
 
-        {/* Footer */}
-        <footer className="text-center text-gray-500 text-sm">
-          <p>
-            <a
-              href="https://twitter.com/whyisjake"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-gray-700"
-            >
-              Twitter
-            </a>
-            {' '}&middot;{' '}
-            <a
-              href="https://instagram.com/whyisjake"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-gray-700"
-            >
-              Instagram
-            </a>
-            {' '}&middot;{' '}
-            <a
-              href="https://github.com/whyisjake/draft-night"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-gray-700"
-            >
-              GitHub
-            </a>
-          </p>
-        </footer>
       </div>
     </main>
   );

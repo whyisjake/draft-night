@@ -16,14 +16,14 @@ export default function LoginPage() {
 
   if (status === 'loading') {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-800 to-green-950">
+      <main className="flex-1 flex items-center justify-center bg-gradient-to-br from-green-800 to-green-950">
         <div className="text-white">Loading...</div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-800 to-green-950">
+    <main className="flex-1 flex items-center justify-center bg-gradient-to-br from-green-800 to-green-950">
       <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Draft Night</h1>
