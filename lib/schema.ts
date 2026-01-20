@@ -45,6 +45,7 @@ export const verificationTokens = pgTable('verification_tokens', {
 export const drafts = pgTable('drafts', {
   id: text('id').primaryKey(),
   userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  league: text('league'),
   division: text('division').notNull(),
   year: integer('year').notNull(),
   status: text('status').notNull().default('setup'),

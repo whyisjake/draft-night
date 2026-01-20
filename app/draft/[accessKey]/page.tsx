@@ -20,8 +20,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: 'Draft Not Found' };
   }
 
-  const title = `${draft.year} ${draft.division} Draft`;
-  const description = `Watch the ${draft.year} ${draft.division} Little League draft live. See available players, track picks, and follow along in real-time.`;
+  const draftName = draft.league
+    ? `${draft.league} ${draft.year} ${draft.division}`
+    : `${draft.year} ${draft.division}`;
+  const title = `${draftName} Draft`;
+  const description = `Watch the ${draftName} Little League draft live. See available players, track picks, and follow along in real-time.`;
 
   return {
     title,

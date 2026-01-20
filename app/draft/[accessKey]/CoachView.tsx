@@ -246,6 +246,7 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
         <div className="max-w-full mx-auto px-4 py-3 flex justify-between items-center">
           <div>
             <h1 className="text-xl font-bold text-gray-900">
+              {draft.league && <span className="text-gray-500">{draft.league} </span>}
               {draft.year} {draft.division} Draft
             </h1>
             <p className="text-sm text-gray-500">Coach View (Read-only)</p>

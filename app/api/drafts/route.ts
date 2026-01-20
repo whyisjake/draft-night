@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { division, year, totalRounds } = await request.json();
+  const { league, division, year, totalRounds } = await request.json();
 
   const id = uuidv4();
   const accessKey = generateAccessKey();
@@ -24,6 +24,7 @@ export async function POST(request: Request) {
   await db.insert(drafts).values({
     id,
     userId: session.user.id,
+    league: league || null,
     division,
     year,
     totalRounds: totalRounds || 12,

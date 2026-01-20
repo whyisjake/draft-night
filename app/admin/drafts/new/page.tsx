@@ -7,6 +7,7 @@ export default function NewDraft() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
+    league: '',
     division: 'Majors',
     year: new Date().getFullYear(),
     totalRounds: 12,
@@ -37,6 +38,17 @@ export default function NewDraft() {
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Create New Draft</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg shadow">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">League</label>
+            <input
+              type="text"
+              value={formData.league}
+              onChange={(e) => setFormData({ ...formData, league: e.target.value })}
+              placeholder="e.g., Walnut Creek Little League"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Division</label>
             <select

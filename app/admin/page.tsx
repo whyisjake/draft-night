@@ -24,12 +24,12 @@ export default async function AdminDashboard() {
 
   // Filter drafts by user (unless super admin, then show all)
   const userDrafts = session.user.isSuperAdmin
-    ? await db.select().from(drafts).orderBy(desc(drafts.year), drafts.division)
+    ? await db.select().from(drafts).orderBy(drafts.league, desc(drafts.year), drafts.division)
     : await db
         .select()
         .from(drafts)
         .where(eq(drafts.userId, session.user.id))
-        .orderBy(desc(drafts.year), drafts.division);
+        .orderBy(drafts.league, desc(drafts.year), drafts.division);
 
   return (
     <main className="p-4 md:p-8">
@@ -76,10 +76,13 @@ export default async function AdminDashboard() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Year
+                      League
                     </th>
                     <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Division
+                    </th>
+                    <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Year
                     </th>
                     <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
@@ -96,10 +99,13 @@ export default async function AdminDashboard() {
                   {userDrafts.map((draft) => (
                     <tr key={draft.id}>
                       <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {draft.year}
+                        {draft.league || <span className="text-gray-400 italic">No League</span>}
                       </td>
                       <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">
                         {draft.division}
+                      </td>
+                      <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">
+                        {draft.year}
                       </td>
                       <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
                         <span
@@ -137,7 +143,7 @@ export default async function AdminDashboard() {
                           )}
                           <DeleteDraftButton
                             draftId={draft.id}
-                            draftName={`${draft.year} ${draft.division}`}
+                            draftName={`${draft.league ? draft.league + ' ' : ''}${draft.year} ${draft.division}`}
                           />
                         </div>
                       </td>

@@ -190,6 +190,7 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
               &larr; Setup
             </Link>
             <h1 className="text-xl font-bold text-gray-900">
+              {draft.league && <span className="text-gray-500">{draft.league} </span>}
               {draft.year} {draft.division} Draft
             </h1>
           </div>

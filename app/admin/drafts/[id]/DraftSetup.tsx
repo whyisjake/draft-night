@@ -204,6 +204,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Settings form state (year and rounds as strings for clean editing)
+  const [settingsLeague, setSettingsLeague] = useState(draft.league || '');
   const [settingsDivision, setSettingsDivision] = useState(draft.division);
   const [settingsYear, setSettingsYear] = useState(String(draft.year));
   const [settingsRounds, setSettingsRounds] = useState(String(draft.totalRounds));
@@ -519,6 +520,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        league: settingsLeague || null,
         division: settingsDivision,
         year: parseInt(settingsYear, 10) || draft.year,
         totalRounds: parseInt(settingsRounds, 10) || draft.totalRounds,
@@ -541,6 +543,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
   }
 
   const settingsChanged =
+    settingsLeague !== (draft.league || '') ||
     settingsDivision !== draft.division ||
     parseInt(settingsYear, 10) !== draft.year ||
     parseInt(settingsRounds, 10) !== draft.totalRounds ||
@@ -593,6 +596,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
               &larr; Back to drafts
             </Link>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+              {draft.league && <span className="text-gray-500">{draft.league} </span>}
               {draft.year} {draft.division} Draft
             </h1>
             <p className="text-gray-600 text-sm md:text-base">Setup and configuration</p>
@@ -1119,6 +1123,16 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-6">Draft Settings</h2>
             <div className="space-y-6 max-w-md">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">League</label>
+                <input
+                  type="text"
+                  value={settingsLeague}
+                  onChange={(e) => setSettingsLeague(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g., Walnut Creek Little League"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Division</label>
                 <input

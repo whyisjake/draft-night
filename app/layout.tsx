@@ -40,7 +40,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen bg-gray-50 flex flex-col">
         <SessionProvider>
-          <div className="flex-1">{children}</div>
+          <div className="flex-1 flex flex-col">{children}</div>
           <Footer />
         </SessionProvider>
       </body>
