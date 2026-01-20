@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { Metadata } from 'next';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { drafts } from '@/lib/schema';
@@ -8,6 +9,11 @@ import SignOutButton from '@/components/SignOutButton';
 import DeleteDraftButton from '@/components/DeleteDraftButton';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'My Drafts | Draft Night',
+  description: 'Manage your Little League drafts. Create new drafts, configure teams, and run draft night.',
+};
 
 export default async function AdminDashboard() {
   const session = await auth();

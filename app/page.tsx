@@ -1,5 +1,16 @@
 import Link from 'next/link';
+import { Metadata } from 'next';
 import { auth } from '@/lib/auth';
+
+export const metadata: Metadata = {
+  title: 'Draft Night - Little League Draft Manager',
+  description: 'Real-time Little League baseball draft management. No more spreadsheet chaos. Run snake drafts, auto-place coach kids, and let coaches follow along live.',
+  openGraph: {
+    title: 'Draft Night - Little League Draft Manager',
+    description: 'Real-time Little League baseball draft management. No more spreadsheet chaos.',
+    type: 'website',
+  },
+};
 
 export default async function Home() {
   const session = await auth();

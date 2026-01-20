@@ -1,4 +1,5 @@
 import { redirect, notFound } from 'next/navigation';
+import { Metadata } from 'next';
 import { db } from '@/lib/db';
 import { drafts, teams, players } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
@@ -9,6 +10,34 @@ export const dynamic = 'force-dynamic';
 
 interface Props {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const [draft] = await db.select().from(drafts).where(eq(drafts.id, id));
+
+  if (!draft) {
+    return { title: 'Draft Not Found | Draft Night' };
+  }
+
+  const title = `${draft.year} ${draft.division} Draft | Draft Night`;
+  const description = `Live draft board for the ${draft.year} ${draft.division} Little League draft. Make picks, track progress, and manage the draft in real-time.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      siteName: 'Draft Night',
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+    },
+  };
 }
 
 export default async function DraftRunPage({ params }: Props) {
