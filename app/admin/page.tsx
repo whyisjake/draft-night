@@ -121,9 +121,13 @@ export default async function AdminDashboard() {
                         </span>
                       </td>
                       <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                        <code className="bg-gray-100 px-2 py-1 rounded text-xs">
+                        <Link
+                          href={`/draft/${draft.accessKey}`}
+                          target="_blank"
+                          className="bg-gray-100 px-2 py-1 rounded text-xs font-mono hover:bg-gray-200 hover:text-gray-700 transition"
+                        >
                           /draft/{draft.accessKey}
-                        </code>
+                        </Link>
                       </td>
                       <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm">
                         <div className="flex flex-wrap gap-2 sm:gap-3">
