@@ -124,6 +124,12 @@ export default function PlayerDetailModal({ player, teams, draftId, onClose, onP
             </div>
           </div>
 
+          {/* School */}
+          <div>
+            <label className="text-xs font-medium text-gray-500 uppercase">School</label>
+            <p className="text-lg font-semibold mt-1 px-3 py-2">{player.school || '-'}</p>
+          </div>
+
           {/* Previous Season */}
           <div className="border-t pt-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-2">Previous Season</h3>

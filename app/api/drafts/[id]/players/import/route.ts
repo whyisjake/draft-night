@@ -25,6 +25,7 @@ interface CsvRow {
   Notes?: string;
   'Team Name'?: string;
   'Team'?: string;
+  School?: string;
   'Will the player be on a swim team this year?'?: string;
   'Will this player be on another sports team or participating in another activity during the baseball/softball season?'?: string;
   'Will the player be available for 80% of baseball / softball?'?: string;
@@ -46,6 +47,7 @@ interface PlayerData {
   isCoachKid: boolean;
   coachKidRound: number | null;
   coachKidTeamId: string | null;
+  school: string | null;
   swimTeam: boolean;
   otherSports: boolean;
   availability80: boolean;
@@ -95,6 +97,7 @@ function parseImportData(text: string, draftId: string, draftTeams: any[], exist
       break;
     }
   }
+  if (headers.has('school')) presentFields.add('school');
   if (headers.has('will the player be on a swim team this year?')) presentFields.add('swimTeam');
   if (headers.has('will this player be on another sports team or participating in another activity during the baseball/softball season?')) presentFields.add('otherSports');
   if (headers.has('will the player be available for 80% of baseball / softball?')) presentFields.add('availability80');
@@ -171,6 +174,9 @@ function parseImportData(text: string, draftId: string, draftTeams: any[], exist
     // Parse pitch count
     const pitchCount = parseInt(row['Pitch Count'] || '0') || null;
 
+    // Parse school
+    const school = row.School?.trim() || null;
+
     parsedPlayers.push({
       fullName,
       rating,
@@ -182,6 +188,7 @@ function parseImportData(text: string, draftId: string, draftTeams: any[], exist
       isCoachKid,
       coachKidRound,
       coachKidTeamId,
+      school,
       swimTeam,
       otherSports,
       availability80,
@@ -264,7 +271,7 @@ function getChanges(existing: any, newData: PlayerData, presentFields: Set<strin
   const changes: { field: string; from: any; to: any }[] = [];
   const allFields: (keyof PlayerData)[] = [
     'rating', 'llAge', 'previousManager', 'previousTeam', 'notes', 'rankingNumber',
-    'isCoachKid', 'coachKidRound', 'coachKidTeamId',
+    'isCoachKid', 'coachKidRound', 'coachKidTeamId', 'school',
     'swimTeam', 'otherSports', 'availability80', 'teammateRequest', 'specialRequest', 'pitchCount'
   ];
 

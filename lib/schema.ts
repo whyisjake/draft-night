@@ -85,6 +85,7 @@ export const players = pgTable('players', {
   roundDrafted: integer('round_drafted'),
   pickNumber: integer('pick_number'),
   // Additional player info fields
+  school: text('school'),
   swimTeam: boolean('swim_team').default(false),
   otherSports: boolean('other_sports').default(false),
   availability80: boolean('availability_80').default(true),

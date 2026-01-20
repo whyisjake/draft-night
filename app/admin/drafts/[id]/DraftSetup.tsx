@@ -626,6 +626,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
       'Full Name',
       'Draft Scores',
       'Little League Age (Baseball)',
+      'School',
       'What team did you play for last year?',
       'Previous Coach',
       'Will the player be on a swim team this year?',
@@ -638,9 +639,9 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
       'Team Name',
     ];
     const sampleRows = [
-      ['John Smith', '85.5', '12', 'Giants', 'Coach Jones', 'No', 'No', 'Yes', 'Mike Johnson', '', 'No', '', ''],
-      ['Jane Doe', '78.0', '11', 'Orioles', 'Coach Brown', 'Yes', 'Yes', 'Yes', '', 'Prefers outfield', 'No', '', ''],
-      ['Mike Johnson', '72.5', '12', 'Cardinals', 'Coach Smith', 'No', 'No', 'Yes', 'John Smith', '', 'Yes', '2', 'Giants'],
+      ['John Smith', '85.5', '12', 'Lincoln Elementary', 'Giants', 'Coach Jones', 'No', 'No', 'Yes', 'Mike Johnson', '', 'No', '', ''],
+      ['Jane Doe', '78.0', '11', 'Washington Middle', 'Orioles', 'Coach Brown', 'Yes', 'Yes', 'Yes', '', 'Prefers outfield', 'No', '', ''],
+      ['Mike Johnson', '72.5', '12', 'Lincoln Elementary', 'Cardinals', 'Coach Smith', 'No', 'No', 'Yes', 'John Smith', '', 'Yes', '2', 'Giants'],
     ];
 
     const csvContent = [
@@ -1442,6 +1443,12 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
                     )}
                   </p>
                 </div>
+              </div>
+
+              {/* School */}
+              <div>
+                <label className="text-xs font-medium text-gray-500 uppercase">School</label>
+                <p className="text-lg font-semibold mt-1 px-3 py-2">{selectedPlayer.school || '-'}</p>
               </div>
 
               {/* Previous Season */}

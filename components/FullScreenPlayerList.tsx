@@ -33,6 +33,7 @@ export default function FullScreenPlayerList({
       filtered = filtered.filter(
         (p) =>
           p.fullName.toLowerCase().includes(term) ||
+          p.school?.toLowerCase().includes(term) ||
           p.previousTeam?.toLowerCase().includes(term) ||
           p.previousManager?.toLowerCase().includes(term) ||
           p.teammateRequest?.toLowerCase().includes(term)
@@ -97,7 +98,7 @@ export default function FullScreenPlayerList({
         <div className="flex items-center gap-4">
           <input
             type="text"
-            placeholder="Search players, teams, coaches..."
+            placeholder="Search players, schools, teams, coaches..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-80 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -216,6 +217,14 @@ export default function FullScreenPlayerList({
                       <div className="text-xs text-gray-500">Pitches</div>
                     </div>
                   </div>
+
+                  {/* School */}
+                  {player.school && (
+                    <div className="text-sm">
+                      <div className="text-xs font-medium text-gray-500 uppercase mb-1">School</div>
+                      <div className="text-gray-700">{player.school}</div>
+                    </div>
+                  )}
 
                   {/* Previous Season */}
                   {(player.previousTeam || player.previousManager) && (
