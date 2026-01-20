@@ -211,6 +211,20 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
   const [settingsStatus, setSettingsStatus] = useState(draft.status);
   const [savingSettings, setSavingSettings] = useState(false);
 
+  // Collaborators state
+  interface CollaboratorInfo {
+    id: string;
+    userId: string;
+    userName: string | null;
+    userEmail: string;
+    userImage: string | null;
+    createdAt: Date | null;
+  }
+  const [collaboratorsList, setCollaboratorsList] = useState<CollaboratorInfo[]>([]);
+  const [newCollaboratorEmail, setNewCollaboratorEmail] = useState('');
+  const [addingCollaborator, setAddingCollaborator] = useState(false);
+  const [collaboratorError, setCollaboratorError] = useState<string | null>(null);
+
   // Sort players based on current sort settings
   const sortedPlayers = useMemo(() => {
     return [...players].sort((a, b) => {
@@ -513,6 +527,50 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
   useEffect(() => {
     setBaseUrl(window.location.origin);
   }, []);
+
+  // Fetch collaborators
+  useEffect(() => {
+    async function fetchCollaborators() {
+      const res = await fetch(`/api/drafts/${draft.id}/collaborators`);
+      if (res.ok) {
+        const data = await res.json();
+        setCollaboratorsList(data);
+      }
+    }
+    fetchCollaborators();
+  }, [draft.id]);
+
+  async function addCollaborator() {
+    if (!newCollaboratorEmail.trim()) return;
+    setAddingCollaborator(true);
+    setCollaboratorError(null);
+
+    const res = await fetch(`/api/drafts/${draft.id}/collaborators`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: newCollaboratorEmail.trim() }),
+    });
+
+    if (res.ok) {
+      const newCollab = await res.json();
+      setCollaboratorsList([...collaboratorsList, newCollab]);
+      setNewCollaboratorEmail('');
+    } else {
+      const error = await res.json();
+      setCollaboratorError(error.error || 'Failed to add collaborator');
+    }
+    setAddingCollaborator(false);
+  }
+
+  async function removeCollaborator(collaboratorId: string) {
+    const res = await fetch(`/api/drafts/${draft.id}/collaborators?collaboratorId=${collaboratorId}`, {
+      method: 'DELETE',
+    });
+
+    if (res.ok) {
+      setCollaboratorsList(collaboratorsList.filter((c) => c.id !== collaboratorId));
+    }
+  }
 
   async function saveSettings() {
     setSavingSettings(true);
@@ -1193,6 +1251,71 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
                   </button>
                 </div>
               </div>
+
+              {/* Collaborators Section */}
+              <div className="pt-4 border-t">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Collaborators</label>
+                <p className="text-sm text-gray-500 mb-3">
+                  Collaborators can sign in and edit player notes on the coach view.
+                </p>
+                <div className="flex items-center gap-2 mb-3">
+                  <input
+                    type="email"
+                    value={newCollaboratorEmail}
+                    onChange={(e) => setNewCollaboratorEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addCollaborator()}
+                    placeholder="Enter email address"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={addCollaborator}
+                    disabled={addingCollaborator || !newCollaboratorEmail.trim()}
+                    className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {addingCollaborator ? 'Adding...' : 'Add'}
+                  </button>
+                </div>
+                {collaboratorError && (
+                  <p className="text-sm text-red-600 mb-3">{collaboratorError}</p>
+                )}
+                {collaboratorsList.length > 0 ? (
+                  <ul className="space-y-2">
+                    {collaboratorsList.map((collab) => (
+                      <li
+                        key={collab.id}
+                        className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg"
+                      >
+                        <div className="flex items-center gap-2">
+                          {collab.userImage && (
+                            <img
+                              src={collab.userImage}
+                              alt=""
+                              className="w-6 h-6 rounded-full"
+                            />
+                          )}
+                          <span className="text-sm">
+                            {collab.userName || collab.userEmail}
+                          </span>
+                          {collab.userName && (
+                            <span className="text-xs text-gray-500">({collab.userEmail})</span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeCollaborator(collab.id)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-400 italic">No collaborators added yet.</p>
+                )}
+              </div>
+
               <div className="pt-4 border-t">
                 <button
                   onClick={saveSettings}

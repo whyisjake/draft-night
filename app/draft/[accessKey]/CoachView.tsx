@@ -5,6 +5,7 @@ import type { Draft, Team, Player } from '@/lib/schema';
 import { getTeamColors } from '@/lib/team-colors';
 import PlayerDetailModal from '@/components/PlayerDetailModal';
 import FullScreenPlayerList from '@/components/FullScreenPlayerList';
+import { signIn, signOut, useSession } from 'next-auth/react';
 
 const PICK_TIME_SECONDS = 60;
 
@@ -12,6 +13,7 @@ interface Props {
   draft: Draft;
   teams: Team[];
   players: Player[];
+  canEditNotes?: boolean;
 }
 
 function calculateTimeRemaining(pickStartedAt: Date | string | null): number {
@@ -21,10 +23,13 @@ function calculateTimeRemaining(pickStartedAt: Date | string | null): number {
   return Math.max(0, PICK_TIME_SECONDS - elapsed);
 }
 
-export default function CoachView({ draft: initialDraft, teams, players: initialPlayers }: Props) {
+export default function CoachView({ draft: initialDraft, teams, players: initialPlayers, canEditNotes = false }: Props) {
+  const { data: session } = useSession();
   const [draft, setDraft] = useState(initialDraft);
   const [players, setPlayers] = useState(initialPlayers);
   const [connected, setConnected] = useState(false);
+  const [editingNotes, setEditingNotes] = useState<string | null>(null);
+  const [noteValue, setNoteValue] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'ranking' | 'rating' | 'name' | 'age'>('ranking');
   const [showDrafted, setShowDrafted] = useState(false);
@@ -128,6 +133,22 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
         icon: '/favicon.ico',
       });
     }
+  }
+
+  // Save player notes
+  async function saveNotes(playerId: string) {
+    const res = await fetch(`/api/drafts/${draft.id}/players/${playerId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: noteValue }),
+    });
+
+    if (res.ok) {
+      const updatedPlayer = await res.json();
+      setPlayers(players.map((p) => (p.id === playerId ? updatedPlayer : p)));
+    }
+    setEditingNotes(null);
+    setNoteValue('');
   }
 
   // Fetch full state from server (used for polling and reconnect)
@@ -249,7 +270,9 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
               {draft.league && <span className="text-gray-500">{draft.league} </span>}
               {draft.year} {draft.division} Draft
             </h1>
-            <p className="text-sm text-gray-500">Coach View (Read-only)</p>
+            <p className="text-sm text-gray-500">
+              {canEditNotes ? `Editing as ${session?.user?.name}` : 'Coach View (Read-only)'}
+            </p>
           </div>
           <div className="flex items-center gap-4">
             {/* Notification Controls */}
@@ -328,6 +351,22 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
               <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
               {connected ? 'Live' : 'Disconnected'}
             </div>
+            {/* Sign in/out button */}
+            {session ? (
+              <button
+                onClick={() => signOut()}
+                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              >
+                Sign out
+              </button>
+            ) : (
+              <button
+                onClick={() => signIn('google')}
+                className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50 transition"
+              >
+                Sign in to edit
+              </button>
+            )}
             {!isComplete && (
               <div
                 className={`text-3xl font-mono font-bold px-3 py-1 rounded-lg ${
@@ -527,10 +566,62 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
                     </svg>
                   </button>
                 </div>
-                {player.notes && (
-                  <div className="text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded px-2 py-1 mt-2">
-                    {player.notes}
-                  </div>
+                {/* Notes section - editable if canEditNotes */}
+                {canEditNotes ? (
+                  editingNotes === player.id ? (
+                    <div className="mt-2 flex gap-1">
+                      <input
+                        type="text"
+                        value={noteValue}
+                        onChange={(e) => setNoteValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveNotes(player.id);
+                          if (e.key === 'Escape') {
+                            setEditingNotes(null);
+                            setNoteValue('');
+                          }
+                        }}
+                        className="flex-1 text-xs px-2 py-1 border border-blue-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Add notes..."
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => saveNotes(player.id)}
+                        className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingNotes(null);
+                          setNoteValue('');
+                        }}
+                        className="text-xs px-2 py-1 text-gray-600 hover:text-gray-800"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setEditingNotes(player.id);
+                        setNoteValue(player.notes || '');
+                      }}
+                      className={`text-xs mt-2 px-2 py-1 rounded ${
+                        player.notes
+                          ? 'text-blue-800 bg-blue-50 border border-blue-200 hover:bg-blue-100'
+                          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {player.notes || 'Add note...'}
+                    </button>
+                  )
+                ) : (
+                  player.notes && (
+                    <div className="text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded px-2 py-1 mt-2">
+                      {player.notes}
+                    </div>
+                  )
                 )}
               </div>
             ))}

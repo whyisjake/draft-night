@@ -93,6 +93,13 @@ export const players = pgTable('players', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+export const collaborators = pgTable('collaborators', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  draftId: text('draft_id').notNull().references(() => drafts.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Draft = typeof drafts.$inferSelect;
@@ -101,3 +108,5 @@ export type Team = typeof teams.$inferSelect;
 export type NewTeam = typeof teams.$inferInsert;
 export type Player = typeof players.$inferSelect;
 export type NewPlayer = typeof players.$inferInsert;
+export type Collaborator = typeof collaborators.$inferSelect;
+export type NewCollaborator = typeof collaborators.$inferInsert;

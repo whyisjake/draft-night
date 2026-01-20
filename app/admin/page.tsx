@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { db } from '@/lib/db';
-import { drafts } from '@/lib/schema';
+import { drafts, collaborators, users } from '@/lib/schema';
 import { desc, eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import SignOutButton from '@/components/SignOutButton';
@@ -29,6 +29,26 @@ export default async function AdminDashboard() {
         .select()
         .from(drafts)
         .where(eq(drafts.userId, session.user.id))
+        .orderBy(drafts.league, desc(drafts.year), drafts.division);
+
+  // Get drafts shared with the user (where they are a collaborator)
+  const sharedDrafts = session.user.isSuperAdmin
+    ? []
+    : await db
+        .select({
+          id: drafts.id,
+          league: drafts.league,
+          division: drafts.division,
+          year: drafts.year,
+          status: drafts.status,
+          accessKey: drafts.accessKey,
+          ownerName: users.name,
+          ownerEmail: users.email,
+        })
+        .from(collaborators)
+        .innerJoin(drafts, eq(collaborators.draftId, drafts.id))
+        .innerJoin(users, eq(drafts.userId, users.id))
+        .where(eq(collaborators.userId, session.user.id))
         .orderBy(drafts.league, desc(drafts.year), drafts.division);
 
   return (
@@ -155,6 +175,80 @@ export default async function AdminDashboard() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Shared Drafts Section */}
+        {sharedDrafts.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Shared with me</h2>
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        League
+                      </th>
+                      <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Division
+                      </th>
+                      <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Year
+                      </th>
+                      <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Owner
+                      </th>
+                      <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {sharedDrafts.map((draft) => (
+                      <tr key={draft.id}>
+                        <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {draft.league || <span className="text-gray-400 italic">No League</span>}
+                        </td>
+                        <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">
+                          {draft.division}
+                        </td>
+                        <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">
+                          {draft.year}
+                        </td>
+                        <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">
+                          {draft.ownerName || draft.ownerEmail}
+                        </td>
+                        <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
+                          <span
+                            className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                              draft.status === 'setup'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : draft.status === 'active'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            {draft.status}
+                          </span>
+                        </td>
+                        <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm">
+                          <Link
+                            href={`/draft/${draft.accessKey}`}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            View & Edit Notes
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

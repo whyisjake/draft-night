@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { db } from '@/lib/db';
-import { drafts, teams, players } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { drafts, teams, players, collaborators } from '@/lib/schema';
+import { eq, and } from 'drizzle-orm';
+import { auth } from '@/lib/auth';
 import CoachView from './CoachView';
 
 export const dynamic = 'force-dynamic';
@@ -54,5 +55,22 @@ export default async function CoachViewPage({ params }: Props) {
   const draftTeams = await db.select().from(teams).where(eq(teams.draftId, draft.id)).orderBy(teams.draftPosition);
   const draftPlayers = await db.select().from(players).where(eq(players.draftId, draft.id));
 
-  return <CoachView draft={draft} teams={draftTeams} players={draftPlayers} />;
+  // Check if current user can edit notes (owner or collaborator)
+  const session = await auth();
+  let canEditNotes = false;
+  if (session?.user?.id) {
+    // Check if user is owner
+    if (draft.userId === session.user.id) {
+      canEditNotes = true;
+    } else {
+      // Check if user is a collaborator
+      const [collab] = await db
+        .select()
+        .from(collaborators)
+        .where(and(eq(collaborators.draftId, draft.id), eq(collaborators.userId, session.user.id)));
+      canEditNotes = !!collab;
+    }
+  }
+
+  return <CoachView draft={draft} teams={draftTeams} players={draftPlayers} canEditNotes={canEditNotes} />;
 }
