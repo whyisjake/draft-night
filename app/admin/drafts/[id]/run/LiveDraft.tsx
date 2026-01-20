@@ -290,7 +290,7 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
         {/* Draft Board */}
         <div className="flex-1 overflow-auto p-4">
           <div className="bg-white rounded-lg shadow overflow-x-auto">
-            <table className="min-w-max">
+            <table className="w-full min-w-max">
               <thead className="bg-gray-800 text-white sticky top-0">
                 <tr>
                   <th className="px-2 py-2 text-xs font-medium text-right w-16">Round</th>
