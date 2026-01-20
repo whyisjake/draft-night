@@ -22,34 +22,30 @@ export default async function AdminDashboard() {
     redirect('/login');
   }
 
-  // Filter drafts by user (unless super admin, then show all)
-  const userDrafts = session.user.isSuperAdmin
-    ? await db.select().from(drafts).orderBy(drafts.league, desc(drafts.year), drafts.division)
-    : await db
-        .select()
-        .from(drafts)
-        .where(eq(drafts.userId, session.user.id))
-        .orderBy(drafts.league, desc(drafts.year), drafts.division);
+  // Always filter drafts by user - super admins can see all drafts on /super-admin
+  const userDrafts = await db
+    .select()
+    .from(drafts)
+    .where(eq(drafts.userId, session.user.id))
+    .orderBy(drafts.league, desc(drafts.year), drafts.division);
 
   // Get drafts shared with the user (where they are a collaborator)
-  const sharedDrafts = session.user.isSuperAdmin
-    ? []
-    : await db
-        .select({
-          id: drafts.id,
-          league: drafts.league,
-          division: drafts.division,
-          year: drafts.year,
-          status: drafts.status,
-          accessKey: drafts.accessKey,
-          ownerName: users.name,
-          ownerEmail: users.email,
-        })
-        .from(collaborators)
-        .innerJoin(drafts, eq(collaborators.draftId, drafts.id))
-        .innerJoin(users, eq(drafts.userId, users.id))
-        .where(eq(collaborators.userId, session.user.id))
-        .orderBy(drafts.league, desc(drafts.year), drafts.division);
+  const sharedDrafts = await db
+    .select({
+      id: drafts.id,
+      league: drafts.league,
+      division: drafts.division,
+      year: drafts.year,
+      status: drafts.status,
+      accessKey: drafts.accessKey,
+      ownerName: users.name,
+      ownerEmail: users.email,
+    })
+    .from(collaborators)
+    .innerJoin(drafts, eq(collaborators.draftId, drafts.id))
+    .innerJoin(users, eq(drafts.userId, users.id))
+    .where(eq(collaborators.userId, session.user.id))
+    .orderBy(drafts.league, desc(drafts.year), drafts.division);
 
   return (
     <main className="p-4 md:p-8">
