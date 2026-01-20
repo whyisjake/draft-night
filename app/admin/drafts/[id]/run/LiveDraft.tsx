@@ -202,7 +202,7 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
           </div>
           <div className="flex items-center gap-6">
             {!isComplete && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-stretch gap-2">
                 <div
                   className={`text-4xl font-mono font-bold px-4 py-2 rounded-lg ${
                     timeRemaining <= 10
@@ -216,7 +216,7 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
                 </div>
                 <button
                   onClick={resetTimer}
-                  className="px-3 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300"
+                  className="px-4 py-2 text-sm bg-gray-200 rounded-lg hover:bg-gray-300"
                 >
                   Reset
                 </button>
