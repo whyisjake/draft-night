@@ -4,6 +4,7 @@ import { drafts } from '@/lib/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { auth } from '@/lib/auth';
 import { eq } from 'drizzle-orm';
+import { track } from '@vercel/analytics/server';
 
 function generateAccessKey(): string {
   return Math.random().toString(36).substring(2, 10);
@@ -32,6 +33,12 @@ export async function POST(request: Request) {
     status: 'setup',
     currentRound: 1,
     currentPick: 1,
+  });
+
+  await track('draft_created', {
+    division,
+    year,
+    totalRounds: totalRounds || 12,
   });
 
   return NextResponse.json({ id, accessKey });

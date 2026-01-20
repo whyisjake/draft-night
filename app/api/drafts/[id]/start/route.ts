@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { drafts, players, teams } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
+import { track } from '@vercel/analytics/server';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -66,6 +67,14 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   // Update draft status and start timer
   await db.update(drafts).set({ status: 'active', pickStartedAt: new Date() }).where(eq(drafts.id, id));
+
+  await track('draft_started', {
+    division: draft.division,
+    year: draft.year,
+    teamCount: draftTeams.length,
+    playerCount: allPlayers.length,
+    preAssignedCount: preAssigned.length,
+  });
 
   return NextResponse.json({ success: true });
 }

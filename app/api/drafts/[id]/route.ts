@@ -26,9 +26,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   const body = await request.json();
-  const { league, division, year, totalRounds, status } = body;
+  const { league, division, year, totalRounds, status, mustDraftAge } = body;
 
-  const updates: Partial<{ league: string | null; division: string; year: number; totalRounds: number; status: string }> = {};
+  const updates: Partial<{ league: string | null; division: string; year: number; totalRounds: number; status: string; mustDraftAge: number | null }> = {};
 
   if (league !== undefined) {
     updates.league = league || null;
@@ -47,6 +47,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (['setup', 'active', 'completed'].includes(status)) {
       updates.status = status;
     }
+  }
+  if (mustDraftAge !== undefined) {
+    updates.mustDraftAge = mustDraftAge ? parseInt(mustDraftAge, 10) : null;
   }
 
   if (Object.keys(updates).length === 0) {

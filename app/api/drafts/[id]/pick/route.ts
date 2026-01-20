@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { drafts, players, teams } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { broadcast } from '@/lib/events';
+import { track } from '@vercel/analytics/server';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -86,6 +87,22 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   // Broadcast update to coach view
   broadcast(id, 'pick', { draft: updatedDraft, player: updatedPlayer });
+
+  // Track analytics
+  await track('pick_made', {
+    round: draft.currentRound,
+    pickNumber: overallPick,
+  });
+
+  // Track draft completion
+  if (nextRound > draft.totalRounds) {
+    await track('draft_completed', {
+      division: draft.division,
+      year: draft.year,
+      totalPicks: overallPick,
+      teamCount: totalTeams,
+    });
+  }
 
   return NextResponse.json({ draft: updatedDraft, player: updatedPlayer });
 }

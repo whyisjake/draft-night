@@ -210,6 +210,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
   const [settingsYear, setSettingsYear] = useState(String(draft.year));
   const [settingsRounds, setSettingsRounds] = useState(String(draft.totalRounds));
   const [settingsStatus, setSettingsStatus] = useState(draft.status);
+  const [settingsMustDraftAge, setSettingsMustDraftAge] = useState(draft.mustDraftAge?.toString() || '');
   const [savingSettings, setSavingSettings] = useState(false);
 
   // Collaborators state
@@ -527,6 +528,10 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
   }
 
   const preAssignedPlayers = players.filter((p) => p.coachKidTeamId);
+  const mustDraftPlayers = draft.mustDraftAge
+    ? players.filter((p) => p.llAge === draft.mustDraftAge)
+    : [];
+  const mustDraftDrafted = mustDraftPlayers.filter((p) => p.isDrafted || p.coachKidTeamId).length;
   const [baseUrl, setBaseUrl] = useState('');
 
   // Set baseUrl on client side only to avoid hydration mismatch
@@ -589,6 +594,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
         year: parseInt(settingsYear, 10) || draft.year,
         totalRounds: parseInt(settingsRounds, 10) || draft.totalRounds,
         status: settingsStatus,
+        mustDraftAge: settingsMustDraftAge || null,
       }),
     });
 
@@ -600,6 +606,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
       setSettingsYear(String(updated.year));
       setSettingsRounds(String(updated.totalRounds));
       setSettingsStatus(updated.status);
+      setSettingsMustDraftAge(updated.mustDraftAge?.toString() || '');
     } else {
       alert('Failed to save settings');
     }
@@ -611,7 +618,8 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
     settingsDivision !== draft.division ||
     parseInt(settingsYear, 10) !== draft.year ||
     parseInt(settingsRounds, 10) !== draft.totalRounds ||
-    settingsStatus !== draft.status;
+    settingsStatus !== draft.status ||
+    settingsMustDraftAge !== (draft.mustDraftAge?.toString() || '');
 
   function downloadSampleCsv() {
     const headers = [
@@ -927,6 +935,29 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
               </div>
             )}
 
+            {/* Must Draft Age Counter */}
+            {draft.mustDraftAge && mustDraftPlayers.length > 0 && (
+              <div className={`border rounded-lg p-3 md:p-4 ${
+                mustDraftDrafted === mustDraftPlayers.length
+                  ? 'bg-green-50 border-green-200'
+                  : 'bg-amber-50 border-amber-200'
+              }`}>
+                <h3 className={`font-semibold mb-1 text-sm md:text-base ${
+                  mustDraftDrafted === mustDraftPlayers.length ? 'text-green-800' : 'text-amber-800'
+                }`}>
+                  Must Draft (Age {draft.mustDraftAge})
+                </h3>
+                <p className={`text-2xl font-bold ${
+                  mustDraftDrafted === mustDraftPlayers.length ? 'text-green-600' : 'text-amber-600'
+                }`}>
+                  {mustDraftDrafted} / {mustDraftPlayers.length}
+                  {mustDraftDrafted === mustDraftPlayers.length && (
+                    <span className="text-sm font-normal ml-2">Complete!</span>
+                  )}
+                </p>
+              </div>
+            )}
+
             {/* Pre-Assigned Players Summary */}
             {preAssignedPlayers.length > 0 && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 md:p-4">
@@ -1227,6 +1258,20 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
                   onChange={(e) => setSettingsRounds(e.target.value.replace(/\D/g, ''))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Must Draft Age</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={settingsMustDraftAge}
+                  onChange={(e) => setSettingsMustDraftAge(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g., 12 for Majors, 11 for AAA"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Players of this age must be drafted. Leave empty to disable.
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>

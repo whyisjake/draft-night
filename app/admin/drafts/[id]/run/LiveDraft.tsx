@@ -180,6 +180,12 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
   const isComplete = draft.currentRound > draft.totalRounds;
   const overallPick = (draft.currentRound - 1) * teams.length + draft.currentPick;
 
+  // Must draft age tracking
+  const mustDraftPlayers = draft.mustDraftAge
+    ? players.filter((p) => p.llAge === draft.mustDraftAge)
+    : [];
+  const mustDraftDrafted = mustDraftPlayers.filter((p) => p.isDrafted).length;
+
   return (
     <main className="min-h-screen bg-gray-100">
       {/* Header */}
@@ -214,6 +220,18 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
                 >
                   Reset
                 </button>
+              </div>
+            )}
+            {draft.mustDraftAge && mustDraftPlayers.length > 0 && (
+              <div className={`px-3 py-2 rounded-lg ${
+                mustDraftDrafted === mustDraftPlayers.length
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-amber-100 text-amber-800'
+              }`}>
+                <div className="text-xs font-medium">Must Draft (Age {draft.mustDraftAge})</div>
+                <div className="text-xl font-bold">
+                  {mustDraftDrafted}/{mustDraftPlayers.length}
+                </div>
               </div>
             )}
             {!isComplete ? (

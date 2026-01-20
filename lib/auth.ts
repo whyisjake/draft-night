@@ -6,6 +6,7 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import { users, accounts, sessions, verificationTokens } from './schema';
 import { eq } from 'drizzle-orm';
 import type { Adapter } from 'next-auth/adapters';
+import { track } from '@vercel/analytics/server';
 
 // Create database connection for auth
 function getAuthDb() {
@@ -48,6 +49,18 @@ export const authOptions: NextAuthOptions = {
       if (user.email && SUPER_ADMIN_EMAILS.includes(user.email)) {
         const authDb = getAuthDb();
         await authDb.update(users).set({ isSuperAdmin: true }).where(eq(users.id, user.id));
+      }
+      // Track signup
+      await track('user_signup', {
+        provider: 'google',
+      });
+    },
+    async signIn({ user, isNewUser }) {
+      if (!isNewUser) {
+        // Track login (signups are tracked in createUser)
+        await track('user_login', {
+          provider: 'google',
+        });
       }
     },
   },

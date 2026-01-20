@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Analytics } from '@vercel/analytics/react';
 import './globals.css';
 import SessionProvider from '@/components/SessionProvider';
 import Footer from '@/components/Footer';
@@ -43,6 +44,7 @@ export default function RootLayout({
           <div className="flex-1 flex flex-col">{children}</div>
           <Footer />
         </SessionProvider>
+        <Analytics />
       </body>
     </html>
   );

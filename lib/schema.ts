@@ -53,6 +53,7 @@ export const drafts = pgTable('drafts', {
   currentRound: integer('current_round').notNull().default(1),
   currentPick: integer('current_pick').notNull().default(1),
   totalRounds: integer('total_rounds').notNull().default(12),
+  mustDraftAge: integer('must_draft_age'),
   pickStartedAt: timestamp('pick_started_at'),
   createdAt: timestamp('created_at').defaultNow(),
 });
