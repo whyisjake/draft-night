@@ -11,7 +11,7 @@ import DeleteDraftButton from '@/components/DeleteDraftButton';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'My Drafts | Draft Night',
+  title: 'My Drafts',
   description: 'Manage your Little League drafts. Create new drafts, configure teams, and run draft night.',
 };
 

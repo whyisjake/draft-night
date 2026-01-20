@@ -17,10 +17,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const [draft] = await db.select().from(drafts).where(eq(drafts.accessKey, accessKey));
 
   if (!draft) {
-    return { title: 'Draft Not Found | Draft Night' };
+    return { title: 'Draft Not Found' };
   }
 
-  const title = `${draft.year} ${draft.division} Draft | Draft Night`;
+  const title = `${draft.year} ${draft.division} Draft`;
   const description = `Watch the ${draft.year} ${draft.division} Little League draft live. See available players, track picks, and follow along in real-time.`;
 
   return {

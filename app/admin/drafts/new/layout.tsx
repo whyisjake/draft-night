@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Create New Draft | Draft Night',
+  title: 'Create New Draft',
   description: 'Create a new Little League draft. Set up your division, year, and number of rounds.',
 };
 
