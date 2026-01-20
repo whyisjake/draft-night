@@ -199,6 +199,7 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [editingPlayerRating, setEditingPlayerRating] = useState<string>('');
   const [editingPlayerRanking, setEditingPlayerRanking] = useState<string>('');
+  const [editingPlayerRound, setEditingPlayerRound] = useState<string>('');
   const [savingPlayer, setSavingPlayer] = useState(false);
   const [sortBy, setSortBy] = useState<'ranking' | 'name' | 'rating' | 'age' | 'pitchCount'>('ranking');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -455,22 +456,27 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
     setSelectedPlayer(player);
     setEditingPlayerRating(player.rating?.toString() || '');
     setEditingPlayerRanking(player.rankingNumber?.toString() || '');
+    setEditingPlayerRound(player.coachKidRound?.toString() || '');
   }
 
   async function savePlayerEdits() {
     if (!selectedPlayer) return;
     setSavingPlayer(true);
 
-    const updates: { rating?: number | null; rankingNumber?: number | null } = {};
+    const updates: { rating?: number | null; rankingNumber?: number | null; coachKidRound?: number | null } = {};
 
     const newRating = editingPlayerRating.trim() ? parseFloat(editingPlayerRating) : null;
     const newRanking = editingPlayerRanking.trim() ? parseInt(editingPlayerRanking, 10) : null;
+    const newRound = editingPlayerRound.trim() ? parseInt(editingPlayerRound, 10) : null;
 
     if (newRating !== selectedPlayer.rating) {
       updates.rating = newRating;
     }
     if (newRanking !== selectedPlayer.rankingNumber) {
       updates.rankingNumber = newRanking;
+    }
+    if (newRound !== selectedPlayer.coachKidRound) {
+      updates.coachKidRound = newRound;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -1464,13 +1470,23 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
               {selectedPlayer.coachKidTeamId && (
                 <div className="border-t pt-4">
                   <h3 className="text-sm font-semibold text-gray-700 mb-2">Pre-Assignment</h3>
-                  <p className="text-sm text-green-600 font-medium">
+                  <p className="text-sm text-green-600 font-medium mb-3">
                     Assigned to: {teams.find((t) => t.id === selectedPlayer.coachKidTeamId)?.coachNames}
                     {teams.find((t) => t.id === selectedPlayer.coachKidTeamId)?.name
                       ? ` (${teams.find((t) => t.id === selectedPlayer.coachKidTeamId)?.name})`
                       : ''}
-                    {selectedPlayer.coachKidRound && ` - Round ${selectedPlayer.coachKidRound}`}
                   </p>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 uppercase">Draft Round</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={editingPlayerRound}
+                      onChange={(e) => setEditingPlayerRound(e.target.value.replace(/\D/g, ''))}
+                      className="w-24 mt-1 px-3 py-2 text-lg font-semibold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="-"
+                    />
+                  </div>
                 </div>
               )}
 

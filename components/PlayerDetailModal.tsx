@@ -14,6 +14,7 @@ interface PlayerDetailModalProps {
 export default function PlayerDetailModal({ player, teams, draftId, onClose, onPlayerUpdate }: PlayerDetailModalProps) {
   const [editingRating, setEditingRating] = useState(player.rating?.toString() || '');
   const [editingRanking, setEditingRanking] = useState(player.rankingNumber?.toString() || '');
+  const [editingRound, setEditingRound] = useState(player.coachKidRound?.toString() || '');
   const [saving, setSaving] = useState(false);
 
   const canEdit = !!draftId && !!onPlayerUpdate;
@@ -22,16 +23,20 @@ export default function PlayerDetailModal({ player, teams, draftId, onClose, onP
     if (!draftId || !onPlayerUpdate) return;
     setSaving(true);
 
-    const updates: { rating?: number | null; rankingNumber?: number | null } = {};
+    const updates: { rating?: number | null; rankingNumber?: number | null; coachKidRound?: number | null } = {};
 
     const newRating = editingRating.trim() ? parseFloat(editingRating) : null;
     const newRanking = editingRanking.trim() ? parseInt(editingRanking, 10) : null;
+    const newRound = editingRound.trim() ? parseInt(editingRound, 10) : null;
 
     if (newRating !== player.rating) {
       updates.rating = newRating;
     }
     if (newRanking !== player.rankingNumber) {
       updates.rankingNumber = newRanking;
+    }
+    if (newRound !== player.coachKidRound) {
+      updates.coachKidRound = newRound;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -190,13 +195,27 @@ export default function PlayerDetailModal({ player, teams, draftId, onClose, onP
           {player.coachKidTeamId && (
             <div className="border-t pt-4">
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Pre-Assignment</h3>
-              <p className="text-sm text-green-600 font-medium">
+              <p className="text-sm text-green-600 font-medium mb-3">
                 Assigned to: {teams.find((t) => t.id === player.coachKidTeamId)?.coachNames}
                 {teams.find((t) => t.id === player.coachKidTeamId)?.name
                   ? ` (${teams.find((t) => t.id === player.coachKidTeamId)?.name})`
                   : ''}
-                {player.coachKidRound && ` - Round ${player.coachKidRound}`}
               </p>
+              <div>
+                <label className="text-xs font-medium text-gray-500 uppercase">Draft Round</label>
+                {canEdit ? (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={editingRound}
+                    onChange={(e) => setEditingRound(e.target.value.replace(/\D/g, ''))}
+                    className="w-24 mt-1 px-3 py-2 text-lg font-semibold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="-"
+                  />
+                ) : (
+                  <p className="text-lg font-semibold">{player.coachKidRound || '-'}</p>
+                )}
+              </div>
             </div>
           )}
 
