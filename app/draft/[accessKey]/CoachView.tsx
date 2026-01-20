@@ -305,7 +305,7 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
               ) : (
                 <select
                   onChange={(e) => e.target.value && enableNotifications(e.target.value)}
-                  className="text-sm border rounded px-2 py-1"
+                  className="px-3 py-1 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition cursor-pointer"
                   defaultValue=""
                 >
                   <option value="">Enable alerts for...</option>
