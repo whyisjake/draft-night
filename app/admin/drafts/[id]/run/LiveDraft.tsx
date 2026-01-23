@@ -40,6 +40,12 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
     player2: Player | null;
   }>({ player1: null, player2: null });
   const [swapping, setSwapping] = useState(false);
+  const [manualPickSlot, setManualPickSlot] = useState<{
+    teamId: string;
+    round: number;
+    teamName: string;
+  } | null>(null);
+  const [showManualPickList, setShowManualPickList] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Timer countdown - recalculate from server time every second
@@ -182,17 +188,23 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
     setViewingPlayer(updatedPlayer);
   }
 
-  function handleBoardCellClick(player: Player | null, event: React.MouseEvent) {
-    if (!player || !player.isDrafted) return;
-
-    if (event.metaKey || event.ctrlKey) {
-      // Command/Ctrl+click: select second player
-      if (selectedForTrade.player1 && player.id !== selectedForTrade.player1.id) {
-        setSelectedForTrade((prev) => ({ ...prev, player2: player }));
+  function handleBoardCellClick(player: Player | null, event: React.MouseEvent, teamId: string, round: number, teamName: string) {
+    if (player && player.isDrafted) {
+      // Clicking on a drafted player - handle trade selection
+      if (event.metaKey || event.ctrlKey) {
+        // Command/Ctrl+click: select second player
+        if (selectedForTrade.player1 && player.id !== selectedForTrade.player1.id) {
+          setSelectedForTrade((prev) => ({ ...prev, player2: player }));
+        }
+      } else {
+        // Regular click: select first player (reset second)
+        setSelectedForTrade({ player1: player, player2: null });
       }
     } else {
-      // Regular click: select first player (reset second)
-      setSelectedForTrade({ player1: player, player2: null });
+      // Clicking on an empty cell - open manual pick
+      setManualPickSlot({ teamId, round, teamName });
+      setShowManualPickList(true);
+      setSelectedForTrade({ player1: null, player2: null });
     }
   }
 
@@ -221,6 +233,38 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
       setSelectedForTrade({ player1: null, player2: null });
     }
     setSwapping(false);
+  }
+
+  async function executeManualPick(player: Player) {
+    if (!manualPickSlot) return;
+
+    // Calculate the pick number for this slot
+    const { teamId, round } = manualPickSlot;
+    const team = teams.find((t) => t.id === teamId);
+    if (!team) return;
+
+    // For snake draft: odd rounds go forward, even rounds go backward
+    const isForward = round % 2 === 1;
+    const pickInRound = isForward ? team.draftPosition : teams.length - team.draftPosition + 1;
+    const overallPickNumber = (round - 1) * teams.length + pickInRound;
+
+    const res = await fetch(`/api/drafts/${draft.id}/players/${player.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        isDrafted: true,
+        draftedByTeamId: teamId,
+        roundDrafted: round,
+        pickNumber: overallPickNumber,
+      }),
+    });
+
+    if (res.ok) {
+      const updatedPlayer = await res.json();
+      setPlayers(players.map((p) => (p.id === updatedPlayer.id ? updatedPlayer : p)));
+      setManualPickSlot(null);
+      setShowManualPickList(false);
+    }
   }
 
   const isComplete = draft.currentRound > draft.totalRounds;
@@ -388,18 +432,22 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
                       <td className="px-2 py-2 text-sm font-bold text-gray-900 border-r text-right">{round}</td>
                       {row.map((player, colIndex) => {
                         // Check if this cell is the current pick (column matches current team)
-                        const isCurrentPick = isCurrentRound && teams[colIndex]?.id === currentTeam?.id;
+                        const team = teams[colIndex];
+                        const isCurrentPick = isCurrentRound && team?.id === currentTeam?.id;
                         const isSelected1 = player && selectedForTrade.player1?.id === player.id;
                         const isSelected2 = player && selectedForTrade.player2?.id === player.id;
+                        const isManualPickTarget = manualPickSlot?.teamId === team?.id && manualPickSlot?.round === round;
 
                         return (
                           <td
                             key={colIndex}
-                            onClick={(e) => handleBoardCellClick(player, e)}
-                            className={`px-2 py-2 text-xs text-center border group relative ${
-                              player ? 'cursor-pointer hover:bg-blue-50' : ''
+                            onClick={(e) => team && handleBoardCellClick(player, e, team.id, round, team.coachNames || team.name || '')}
+                            className={`px-2 py-2 text-xs text-center border group relative cursor-pointer ${
+                              player ? 'hover:bg-blue-50' : 'hover:bg-green-50'
                             } ${
-                              isSelected1
+                              isManualPickTarget
+                                ? 'ring-2 ring-green-500 bg-green-200'
+                                : isSelected1
                                 ? 'ring-2 ring-blue-500 bg-blue-100'
                                 : isSelected2
                                 ? 'ring-2 ring-orange-500 bg-orange-100'
@@ -587,6 +635,53 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
             setShowFullPlayerList(false);
           }}
         />
+      )}
+
+      {/* Manual Pick Player List */}
+      {showManualPickList && manualPickSlot && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Select Player for Manual Pick</h2>
+                <p className="text-sm text-gray-600">
+                  Round {manualPickSlot.round} - {manualPickSlot.teamName}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowManualPickList(false);
+                  setManualPickSlot(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {players
+                  .filter((p) => !p.isDrafted)
+                  .sort((a, b) => (a.rankingNumber || 999) - (b.rankingNumber || 999))
+                  .map((player) => (
+                    <button
+                      key={player.id}
+                      onClick={() => executeManualPick(player)}
+                      className="p-3 text-left border rounded-lg hover:bg-blue-50 hover:border-blue-300 transition"
+                    >
+                      <div className="font-medium text-gray-900">{player.fullName}</div>
+                      <div className="text-xs text-gray-500">
+                        #{player.rankingNumber || '-'} | Rating: {player.rating?.toFixed(1) || '-'} | Age: {player.llAge || '-'}
+                      </div>
+                    </button>
+                  ))}
+              </div>
+              {players.filter((p) => !p.isDrafted).length === 0 && (
+                <p className="text-center text-gray-500 py-8">No available players</p>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Trade Players Panel */}

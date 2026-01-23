@@ -16,6 +16,7 @@ export default function PlayerDetailModal({ player, teams, draftId, onClose, onP
   const [editingRanking, setEditingRanking] = useState(player.rankingNumber?.toString() || '');
   const [editingRound, setEditingRound] = useState(player.coachKidRound?.toString() || '');
   const [saving, setSaving] = useState(false);
+  const [undrafting, setUndrafting] = useState(false);
 
   const canEdit = !!draftId && !!onPlayerUpdate;
 
@@ -55,6 +56,31 @@ export default function PlayerDetailModal({ player, teams, draftId, onClose, onP
       onPlayerUpdate(updated);
     }
     setSaving(false);
+  }
+
+  async function undraftPlayer() {
+    if (!draftId || !onPlayerUpdate) return;
+    if (!confirm(`Are you sure you want to remove ${player.fullName} from the draft board?`)) return;
+
+    setUndrafting(true);
+
+    const res = await fetch(`/api/drafts/${draftId}/players/${player.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        isDrafted: false,
+        draftedByTeamId: null,
+        roundDrafted: null,
+        pickNumber: null,
+      }),
+    });
+
+    if (res.ok) {
+      const updated = await res.json();
+      onPlayerUpdate(updated);
+      onClose();
+    }
+    setUndrafting(false);
   }
 
   return (
@@ -235,6 +261,15 @@ export default function PlayerDetailModal({ player, teams, draftId, onClose, onP
                   <> by {teams.find((t) => t.id === player.draftedByTeamId)?.coachNames}</>
                 )}
               </p>
+              {canEdit && (
+                <button
+                  onClick={undraftPlayer}
+                  disabled={undrafting}
+                  className="mt-3 px-4 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition disabled:opacity-50"
+                >
+                  {undrafting ? 'Removing...' : 'Remove from Board'}
+                </button>
+              )}
             </div>
           )}
         </div>
