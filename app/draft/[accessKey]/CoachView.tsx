@@ -172,8 +172,8 @@ export default function CoachView({ draft: initialDraft, teams, players: initial
   useEffect(() => {
     // Fetch immediately on mount to get fresh data
     refreshState();
-    // Then poll every 3 seconds
-    const pollInterval = setInterval(refreshState, 3000);
+    // Then poll every 5 seconds
+    const pollInterval = setInterval(refreshState, 5000);
     return () => clearInterval(pollInterval);
   }, [draft.id]);
 
