@@ -35,6 +35,11 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
   const [keepCoachKids, setKeepCoachKids] = useState(true);
   const [viewingPlayer, setViewingPlayer] = useState<Player | null>(null);
   const [showFullPlayerList, setShowFullPlayerList] = useState(false);
+  const [selectedForTrade, setSelectedForTrade] = useState<{
+    player1: Player | null;
+    player2: Player | null;
+  }>({ player1: null, player2: null });
+  const [swapping, setSwapping] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Timer countdown - recalculate from server time every second
@@ -175,6 +180,47 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
   function handlePlayerUpdate(updatedPlayer: Player) {
     setPlayers(players.map((p) => (p.id === updatedPlayer.id ? updatedPlayer : p)));
     setViewingPlayer(updatedPlayer);
+  }
+
+  function handleBoardCellClick(player: Player | null, event: React.MouseEvent) {
+    if (!player || !player.isDrafted) return;
+
+    if (event.metaKey || event.ctrlKey) {
+      // Command/Ctrl+click: select second player
+      if (selectedForTrade.player1 && player.id !== selectedForTrade.player1.id) {
+        setSelectedForTrade((prev) => ({ ...prev, player2: player }));
+      }
+    } else {
+      // Regular click: select first player (reset second)
+      setSelectedForTrade({ player1: player, player2: null });
+    }
+  }
+
+  async function executeSwap() {
+    if (!selectedForTrade.player1 || !selectedForTrade.player2) return;
+    setSwapping(true);
+
+    const res = await fetch(`/api/drafts/${draft.id}/players/swap`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        player1Id: selectedForTrade.player1.id,
+        player2Id: selectedForTrade.player2.id,
+      }),
+    });
+
+    if (res.ok) {
+      const { player1, player2 } = await res.json();
+      setPlayers(
+        players.map((p) => {
+          if (p.id === player1.id) return player1;
+          if (p.id === player2.id) return player2;
+          return p;
+        })
+      );
+      setSelectedForTrade({ player1: null, player2: null });
+    }
+    setSwapping(false);
   }
 
   const isComplete = draft.currentRound > draft.totalRounds;
@@ -343,12 +389,21 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
                       {row.map((player, colIndex) => {
                         // Check if this cell is the current pick (column matches current team)
                         const isCurrentPick = isCurrentRound && teams[colIndex]?.id === currentTeam?.id;
+                        const isSelected1 = player && selectedForTrade.player1?.id === player.id;
+                        const isSelected2 = player && selectedForTrade.player2?.id === player.id;
 
                         return (
                           <td
                             key={colIndex}
+                            onClick={(e) => handleBoardCellClick(player, e)}
                             className={`px-2 py-2 text-xs text-center border ${
-                              isCurrentPick && !isComplete
+                              player ? 'cursor-pointer hover:bg-blue-50' : ''
+                            } ${
+                              isSelected1
+                                ? 'ring-2 ring-blue-500 bg-blue-100'
+                                : isSelected2
+                                ? 'ring-2 ring-orange-500 bg-orange-100'
+                                : isCurrentPick && !isComplete
                                 ? 'bg-green-200 border-green-500 border-2'
                                 : player
                                 ? player.coachKidTeamId
@@ -518,6 +573,52 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
             setShowFullPlayerList(false);
           }}
         />
+      )}
+
+      {/* Trade Players Panel */}
+      {selectedForTrade.player1 && (
+        <div className="fixed bottom-4 right-4 bg-white shadow-lg rounded-lg p-4 border z-50 min-w-[300px]">
+          <h3 className="font-bold text-gray-900 mb-2">Trade Players</h3>
+          <div className="space-y-2 mb-4">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-blue-500" />
+              <span className="font-medium">{selectedForTrade.player1.fullName}</span>
+              <span className="text-xs text-gray-500">
+                (Round {selectedForTrade.player1.roundDrafted})
+              </span>
+            </div>
+            {selectedForTrade.player2 ? (
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-orange-500" />
+                <span className="font-medium">{selectedForTrade.player2.fullName}</span>
+                <span className="text-xs text-gray-500">
+                  (Round {selectedForTrade.player2.roundDrafted})
+                </span>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 italic">
+                ⌘+click another player to trade
+              </p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedForTrade({ player1: null, player2: null })}
+              className="flex-1 px-3 py-2 text-sm bg-gray-200 rounded-lg hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            {selectedForTrade.player2 && (
+              <button
+                onClick={executeSwap}
+                disabled={swapping}
+                className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {swapping ? 'Trading...' : 'Trade Players'}
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </main>
   );
