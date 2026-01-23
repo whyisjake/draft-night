@@ -396,7 +396,7 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
                           <td
                             key={colIndex}
                             onClick={(e) => handleBoardCellClick(player, e)}
-                            className={`px-2 py-2 text-xs text-center border ${
+                            className={`px-2 py-2 text-xs text-center border group relative ${
                               player ? 'cursor-pointer hover:bg-blue-50' : ''
                             } ${
                               isSelected1
@@ -413,7 +413,21 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
                             }`}
                           >
                             {player ? (
-                              <div className="truncate font-medium">{player.fullName}</div>
+                              <>
+                                <div className="truncate font-medium">{player.fullName}</div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setViewingPlayer(player);
+                                  }}
+                                  className="absolute top-1 right-1 p-0.5 text-gray-400 hover:text-blue-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="View player details"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                </button>
+                              </>
                             ) : null}
                           </td>
                         );
