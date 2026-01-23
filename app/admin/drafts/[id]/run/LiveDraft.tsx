@@ -188,6 +188,11 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
     setViewingPlayer(updatedPlayer);
   }
 
+  function handlePlayerDelete(playerId: string) {
+    setPlayers(players.filter((p) => p.id !== playerId));
+    setViewingPlayer(null);
+  }
+
   function handleBoardCellClick(player: Player | null, event: React.MouseEvent, teamId: string, round: number, teamName: string) {
     if (player && player.isDrafted) {
       // Clicking on a drafted player - handle trade selection
@@ -621,6 +626,7 @@ export default function LiveDraft({ draft: initialDraft, teams, players: initial
           draftId={draft.id}
           onClose={() => setViewingPlayer(null)}
           onPlayerUpdate={handlePlayerUpdate}
+          onPlayerDelete={handlePlayerDelete}
         />
       )}
 

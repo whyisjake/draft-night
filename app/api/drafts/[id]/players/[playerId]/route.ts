@@ -52,3 +52,33 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
   return NextResponse.json(updated);
 }
+
+export async function DELETE(request: Request, { params }: RouteParams) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { id, playerId } = await params;
+
+  // Check if user is owner or super admin (no collaborators for delete)
+  const [draft] = await db.select().from(drafts).where(eq(drafts.id, id));
+  if (!draft) {
+    return NextResponse.json({ error: 'Draft not found' }, { status: 404 });
+  }
+
+  const isOwner = draft.userId === session.user.id;
+  const isSuperAdmin = session.user.isSuperAdmin;
+
+  if (!isOwner && !isSuperAdmin) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  // Delete the player
+  await db.delete(players).where(and(eq(players.id, playerId), eq(players.draftId, id)));
+
+  // Broadcast player deletion to coach view
+  broadcast(id, 'playerDeleted', { playerId });
+
+  return NextResponse.json({ success: true });
+}

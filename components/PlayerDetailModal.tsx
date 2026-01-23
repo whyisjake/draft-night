@@ -9,16 +9,19 @@ interface PlayerDetailModalProps {
   draftId?: string;
   onClose: () => void;
   onPlayerUpdate?: (player: Player) => void;
+  onPlayerDelete?: (playerId: string) => void;
 }
 
-export default function PlayerDetailModal({ player, teams, draftId, onClose, onPlayerUpdate }: PlayerDetailModalProps) {
+export default function PlayerDetailModal({ player, teams, draftId, onClose, onPlayerUpdate, onPlayerDelete }: PlayerDetailModalProps) {
   const [editingRating, setEditingRating] = useState(player.rating?.toString() || '');
   const [editingRanking, setEditingRanking] = useState(player.rankingNumber?.toString() || '');
   const [editingRound, setEditingRound] = useState(player.coachKidRound?.toString() || '');
   const [saving, setSaving] = useState(false);
   const [undrafting, setUndrafting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const canEdit = !!draftId && !!onPlayerUpdate;
+  const canDelete = !!draftId && !!onPlayerDelete;
 
   async function saveChanges() {
     if (!draftId || !onPlayerUpdate) return;
@@ -81,6 +84,23 @@ export default function PlayerDetailModal({ player, teams, draftId, onClose, onP
       onClose();
     }
     setUndrafting(false);
+  }
+
+  async function deletePlayer() {
+    if (!draftId || !onPlayerDelete) return;
+    if (!confirm(`Are you sure you want to permanently delete ${player.fullName} from this draft? This cannot be undone.`)) return;
+
+    setDeleting(true);
+
+    const res = await fetch(`/api/drafts/${draftId}/players/${player.id}`, {
+      method: 'DELETE',
+    });
+
+    if (res.ok) {
+      onPlayerDelete(player.id);
+      onClose();
+    }
+    setDeleting(false);
   }
 
   return (
@@ -287,6 +307,16 @@ export default function PlayerDetailModal({ player, teams, draftId, onClose, onP
               className="flex-1 py-2 px-4 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          )}
+          {canDelete && (
+            <button
+              onClick={deletePlayer}
+              disabled={deleting}
+              className="py-2 px-4 rounded-lg font-medium text-red-600 border border-red-300 hover:bg-red-50 transition disabled:opacity-50"
+              title="Delete player from draft"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
             </button>
           )}
         </div>
