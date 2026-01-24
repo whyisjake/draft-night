@@ -24,6 +24,12 @@ export default async function Home() {
             Draft Night
           </Link>
           <nav className="flex items-center gap-4">
+            <Link
+              href="/help"
+              className="text-gray-600 hover:text-gray-900 font-medium text-sm"
+            >
+              Help
+            </Link>
             {session?.user ? (
               <>
                 <span className="text-gray-600 text-sm">Hi, {session.user.name?.split(' ')[0]}</span>
@@ -137,6 +143,45 @@ export default async function Home() {
                 Desktop alerts keep everyone in the loop.
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* Documentation */}
+        <div className="mb-16">
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">Learn How It Works</h2>
+          <div className="grid md:grid-cols-3 gap-4">
+            <Link
+              href="/help/getting-started"
+              className="block bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition border border-gray-200"
+            >
+              <h3 className="font-semibold text-gray-900 mb-2">Getting Started</h3>
+              <p className="text-gray-600 text-sm">
+                Create your first draft, add teams, and import players.
+              </p>
+            </Link>
+            <Link
+              href="/help/running-a-draft"
+              className="block bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition border border-gray-200"
+            >
+              <h3 className="font-semibold text-gray-900 mb-2">Running a Draft</h3>
+              <p className="text-gray-600 text-sm">
+                Make picks, manage the timer, and keep things moving.
+              </p>
+            </Link>
+            <Link
+              href="/help/coach-view"
+              className="block bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition border border-gray-200"
+            >
+              <h3 className="font-semibold text-gray-900 mb-2">Coach View</h3>
+              <p className="text-gray-600 text-sm">
+                How coaches follow along and get turn alerts.
+              </p>
+            </Link>
+          </div>
+          <div className="text-center mt-6">
+            <Link href="/help" className="text-blue-600 hover:text-blue-800 font-medium">
+              View all documentation &rarr;
+            </Link>
           </div>
         </div>
 

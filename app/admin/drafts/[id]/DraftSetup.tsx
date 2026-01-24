@@ -204,6 +204,16 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
   const [sortBy, setSortBy] = useState<'ranking' | 'name' | 'rating' | 'age' | 'pitchCount'>('ranking');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
+  // Import from draft state
+  const [showImportFromDraft, setShowImportFromDraft] = useState(false);
+  const [availableDrafts, setAvailableDrafts] = useState<Draft[]>([]);
+  const [selectedSourceDraft, setSelectedSourceDraft] = useState<string>('');
+  const [sourceDraftPlayers, setSourceDraftPlayers] = useState<Player[]>([]);
+  const [sourceDraftInfo, setSourceDraftInfo] = useState<Draft | null>(null);
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
+  const [importingFromDraft, setImportingFromDraft] = useState(false);
+  const [loadingSourcePlayers, setLoadingSourcePlayers] = useState(false);
+
   // Settings form state (year and rounds as strings for clean editing)
   const [settingsLeague, setSettingsLeague] = useState(draft.league || '');
   const [settingsDivision, setSettingsDivision] = useState(draft.division);
@@ -451,6 +461,83 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
     setShowPreview(false);
     setPreviewDiff(null);
     setPreviewStats(null);
+  }
+
+  async function openImportFromDraftModal() {
+    setShowImportFromDraft(true);
+    // Fetch available drafts
+    const res = await fetch('/api/drafts');
+    if (res.ok) {
+      const allDrafts: Draft[] = await res.json();
+      // Filter out current draft
+      setAvailableDrafts(allDrafts.filter((d) => d.id !== draft.id));
+    }
+  }
+
+  async function loadSourceDraftPlayers(sourceDraftId: string) {
+    if (!sourceDraftId) {
+      setSourceDraftPlayers([]);
+      setSourceDraftInfo(null);
+      setSelectedPlayerIds(new Set());
+      return;
+    }
+
+    setLoadingSourcePlayers(true);
+    const res = await fetch(`/api/drafts/${draft.id}/players/import-from-draft?sourceDraftId=${sourceDraftId}`);
+    if (res.ok) {
+      const data = await res.json();
+      setSourceDraftPlayers(data.players);
+      setSourceDraftInfo(data.draft);
+      // Select all by default
+      setSelectedPlayerIds(new Set(data.players.map((p: Player) => p.id)));
+    }
+    setLoadingSourcePlayers(false);
+  }
+
+  async function executeImportFromDraft() {
+    if (!selectedSourceDraft || selectedPlayerIds.size === 0) return;
+
+    setImportingFromDraft(true);
+    const res = await fetch(`/api/drafts/${draft.id}/players/import-from-draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceDraftId: selectedSourceDraft,
+        playerIds: Array.from(selectedPlayerIds),
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setPlayers([...players, ...data.players]);
+      setShowImportFromDraft(false);
+      setSelectedSourceDraft('');
+      setSourceDraftPlayers([]);
+      setSourceDraftInfo(null);
+      setSelectedPlayerIds(new Set());
+      setImportResult({ added: data.imported, updated: 0, skipped: 0 });
+    }
+    setImportingFromDraft(false);
+  }
+
+  function togglePlayerSelection(playerId: string) {
+    setSelectedPlayerIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(playerId)) {
+        newSet.delete(playerId);
+      } else {
+        newSet.add(playerId);
+      }
+      return newSet;
+    });
+  }
+
+  function toggleAllPlayers() {
+    if (selectedPlayerIds.size === sourceDraftPlayers.length) {
+      setSelectedPlayerIds(new Set());
+    } else {
+      setSelectedPlayerIds(new Set(sourceDraftPlayers.map((p) => p.id)));
+    }
   }
 
   function openPlayerModal(player: Player) {
@@ -1211,6 +1298,20 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
                 </button>
               </div>
             </div>
+
+            {/* Import from Another Draft */}
+            <div className="bg-white rounded-lg shadow p-4 md:p-6">
+              <h2 className="text-xl font-semibold mb-4">Import from Another Draft</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Import undrafted players from another draft (e.g., move players down from an older division).
+              </p>
+              <button
+                onClick={openImportFromDraftModal}
+                className="bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 transition"
+              >
+                Select Source Draft
+              </button>
+            </div>
           </div>
         )}
 
@@ -1569,6 +1670,149 @@ export default function DraftSetup({ draft: initialDraft, teams: initialTeams, p
               >
                 {savingPlayer ? 'Saving...' : 'Save Changes'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import from Draft Modal */}
+      {showImportFromDraft && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={() => setShowImportFromDraft(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Import from Another Draft</h2>
+                <p className="text-sm text-gray-600">Select a draft and choose players to import</p>
+              </div>
+              <button
+                onClick={() => setShowImportFromDraft(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-6 flex-1 overflow-auto">
+              {/* Source Draft Selector */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Source Draft</label>
+                <select
+                  value={selectedSourceDraft}
+                  onChange={(e) => {
+                    setSelectedSourceDraft(e.target.value);
+                    loadSourceDraftPlayers(e.target.value);
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select a draft...</option>
+                  {availableDrafts.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.year} {d.division} {d.league && `(${d.league})`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Loading state */}
+              {loadingSourcePlayers && (
+                <div className="text-center py-8 text-gray-500">Loading players...</div>
+              )}
+
+              {/* Source draft info and player list */}
+              {sourceDraftInfo && !loadingSourcePlayers && (
+                <>
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>{sourceDraftPlayers.length}</strong> undrafted players available from{' '}
+                      <strong>{sourceDraftInfo.year} {sourceDraftInfo.division}</strong>
+                      {sourceDraftInfo.league && ` (${sourceDraftInfo.league})`}
+                    </p>
+                  </div>
+
+                  {sourceDraftPlayers.length > 0 ? (
+                    <>
+                      {/* Select All */}
+                      <div className="mb-3 flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="selectAll"
+                          checked={selectedPlayerIds.size === sourceDraftPlayers.length}
+                          onChange={toggleAllPlayers}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                        />
+                        <label htmlFor="selectAll" className="text-sm font-medium text-gray-700">
+                          Select all ({sourceDraftPlayers.length} players)
+                        </label>
+                      </div>
+
+                      {/* Player list */}
+                      <div className="border border-gray-200 rounded-lg max-h-64 overflow-auto">
+                        {sourceDraftPlayers
+                          .sort((a, b) => (a.rankingNumber || 999) - (b.rankingNumber || 999))
+                          .map((player) => (
+                            <label
+                              key={player.id}
+                              className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedPlayerIds.has(player.id)}
+                                onChange={() => togglePlayerSelection(player.id)}
+                                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                              />
+                              <div className="flex-1">
+                                <span className="font-medium text-gray-900">{player.fullName}</span>
+                                <span className="ml-2 text-sm text-gray-500">
+                                  #{player.rankingNumber || '-'} | Rating: {player.rating?.toFixed(1) || '-'} | Age: {player.llAge || '-'}
+                                </span>
+                              </div>
+                            </label>
+                          ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      No undrafted players in this draft
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* No draft selected */}
+              {!selectedSourceDraft && !loadingSourcePlayers && (
+                <div className="text-center py-8 text-gray-500">
+                  Select a draft to see available players
+                </div>
+              )}
+            </div>
+
+            <div className="border-t px-6 py-4 bg-gray-50 flex justify-between items-center">
+              <p className="text-sm text-gray-600">
+                {selectedPlayerIds.size > 0 && (
+                  <>{selectedPlayerIds.size} player{selectedPlayerIds.size !== 1 && 's'} selected</>
+                )}
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowImportFromDraft(false)}
+                  className="py-2 px-4 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeImportFromDraft}
+                  disabled={importingFromDraft || selectedPlayerIds.size === 0}
+                  className="py-2 px-4 rounded-lg font-semibold bg-green-600 text-white hover:bg-green-700 transition disabled:opacity-50"
+                >
+                  {importingFromDraft ? 'Importing...' : `Import ${selectedPlayerIds.size} Player${selectedPlayerIds.size !== 1 ? 's' : ''}`}
+                </button>
+              </div>
             </div>
           </div>
         </div>
