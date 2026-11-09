@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { drafts, players, teams } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { track } from '@vercel/analytics/server';
+import { findNextOpenSlot } from '@/lib/draft-logic';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -65,8 +66,26 @@ export async function POST(request: Request, { params }: RouteParams) {
       .where(eq(players.id, player.id));
   }
 
+  // The opening slot(s) may belong to teams whose coach kid was just placed
+  // there, so start at the first open slot rather than always round 1, pick 1.
+  const placedPlayers = await db.select().from(players).where(eq(players.draftId, id));
+  const firstOpen = findNextOpenSlot(1, 1, {
+    teams: draftTeams,
+    draftedPlayers: placedPlayers,
+    totalRounds: draft.totalRounds,
+    inclusive: true,
+  });
+
   // Update draft status and start timer
-  await db.update(drafts).set({ status: 'active', pickStartedAt: new Date() }).where(eq(drafts.id, id));
+  await db
+    .update(drafts)
+    .set({
+      status: 'active',
+      currentRound: firstOpen.round,
+      currentPick: firstOpen.pick,
+      pickStartedAt: new Date(),
+    })
+    .where(eq(drafts.id, id));
 
   await track('draft_started', {
     division: draft.division,

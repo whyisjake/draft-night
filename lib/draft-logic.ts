@@ -136,3 +136,59 @@ export function shuffleArray<T>(array: T[]): T[] {
   }
   return shuffled;
 }
+
+/**
+ * Find the first open slot in a snake draft, starting at (round, pick).
+ * A slot is "filled" when its team already has a drafted player in that round
+ * (e.g. a pre-assigned coach kid). `pick` is the position within the round
+ * (1..totalTeams), not the team's draft position.
+ *
+ * With `inclusive`, the starting slot itself is checked first; otherwise the
+ * search begins at the slot after it. Returns round > totalRounds when no open
+ * slot remains (draft complete).
+ */
+export function findNextOpenSlot(
+  round: number,
+  pick: number,
+  options: {
+    teams: Array<{ id: string; draftPosition: number }>;
+    draftedPlayers: Array<{ isDrafted: boolean; draftedByTeamId: string | null; roundDrafted: number | null }>;
+    totalRounds: number;
+    inclusive?: boolean;
+  }
+): { round: number; pick: number } {
+  const { teams, draftedPlayers, totalRounds, inclusive = false } = options;
+  const totalTeams = teams.length;
+
+  let nextRound = round;
+  let nextPick = pick;
+  let first = inclusive;
+
+  while (true) {
+    if (!first) {
+      if (nextPick < totalTeams) {
+        nextPick++;
+      } else {
+        nextRound++;
+        nextPick = 1;
+      }
+    }
+    first = false;
+
+    if (nextRound > totalRounds) {
+      return { round: nextRound, pick: nextPick };
+    }
+
+    const isForward = nextRound % 2 === 1;
+    const teamPosition = isForward ? nextPick : totalTeams - nextPick + 1;
+    const team = teams.find((t) => t.draftPosition === teamPosition);
+
+    const filled = draftedPlayers.some(
+      (p) => p.isDrafted && p.draftedByTeamId === team?.id && p.roundDrafted === nextRound
+    );
+
+    if (!filled) {
+      return { round: nextRound, pick: nextPick };
+    }
+  }
+}

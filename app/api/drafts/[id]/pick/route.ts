@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { drafts, players, teams } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { broadcast } from '@/lib/events';
+import { findNextOpenSlot } from '@/lib/draft-logic';
 import { track } from '@vercel/analytics/server';
 
 interface RouteParams {
@@ -37,44 +38,13 @@ export async function POST(request: Request, { params }: RouteParams) {
   // Calculate next pick (snake draft)
   // nextPick = pick number within round (1 to totalTeams)
   // Team position is calculated from pick + direction
-  let nextRound = draft.currentRound;
-  let nextPick = draft.currentPick;
-
-  // Get all players once for coach kid checking
-  const allPlayers = await db.select().from(players).where(eq(players.draftId, id));
-
-  // Helper to get team position from pick number and round
-  const getTeamPosition = (round: number, pick: number) => {
-    const isForward = round % 2 === 1;
-    return isForward ? pick : totalTeams - pick + 1;
-  };
-
   // Advance to next pick, skipping pre-filled slots (coach kids or already drafted)
-  do {
-    // Move to next pick
-    if (nextPick < totalTeams) {
-      nextPick++;
-    } else {
-      // End of round, move to next round
-      nextRound++;
-      nextPick = 1;
-    }
-
-    // Check if this slot is already filled
-    if (nextRound <= draft.totalRounds) {
-      const nextTeamPosition = getTeamPosition(nextRound, nextPick);
-      const nextTeam = draftTeams.find((t) => t.draftPosition === nextTeamPosition);
-
-      const preFilledSlot = allPlayers.find(
-        (p) =>
-          p.isDrafted &&
-          p.draftedByTeamId === nextTeam?.id &&
-          p.roundDrafted === nextRound
-      );
-
-      if (!preFilledSlot) break; // Found an open slot
-    }
-  } while (nextRound <= draft.totalRounds);
+  const allPlayers = await db.select().from(players).where(eq(players.draftId, id));
+  const { round: nextRound, pick: nextPick } = findNextOpenSlot(draft.currentRound, draft.currentPick, {
+    teams: draftTeams,
+    draftedPlayers: allPlayers,
+    totalRounds: draft.totalRounds,
+  });
 
   // Update draft position and reset timer
   await db
